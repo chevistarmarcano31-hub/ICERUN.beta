@@ -258,6 +258,19 @@
   .boss-lock-msg { width: 82vw; padding: 10px 12px; font-size: 10px; text-align: center; letter-spacing: 1px; }
 }
 
+@media (pointer: coarse) and (orientation: landscape) {
+  .hud-hp-position { top: max(8px, env(safe-area-inset-top)); left: 8px; width: 116px; }
+  .hud-p2-position { top: max(8px, env(safe-area-inset-top)); left: 8px; margin-top: 58px; width: 116px; }
+  .hud-top-center-position { top: max(8px, env(safe-area-inset-top)); left: 50%; }
+  .hud-rooms-position { top: max(8px, env(safe-area-inset-top)); right: calc(var(--touch-dock-width) + 8px); }
+  .hud-coins-position { top: 58px; right: calc(var(--touch-dock-width) + 8px); }
+  .hud-stats-position { bottom: 8px; left: calc((100vw - var(--touch-dock-width)) / 2); }
+  .hud-xp-position { bottom: 8px; left: 8px; width: 124px; min-width: 0; }
+  .ability-slot { display: none; }
+  .minimap { width: 86px; height: 86px; top: 8px; right: calc(var(--touch-dock-width) + 8px); }
+  .boss-lock-msg { left: calc((100vw - var(--touch-dock-width)) / 2); width: min(70vw, 360px); }
+}
+
 /* Minimapa */
 .minimap {
   position: absolute;

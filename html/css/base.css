@@ -169,6 +169,69 @@ canvas#game {
   .touch-action-interact { font-size: 14px; }
 }
 
+@media (pointer: coarse) and (orientation: landscape) {
+  body {
+    padding: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  #app {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    border-width: 0;
+    border-radius: 0;
+    --touch-dock-width: clamp(184px, 25vw, 250px);
+  }
+  canvas#game {
+    position: absolute;
+    z-index: 0;
+    top: 50%;
+    left: 0;
+    width: min(calc(100dvh - 4px), calc(100vw - var(--touch-dock-width)));
+    height: min(calc(100dvh - 4px), calc(100vw - var(--touch-dock-width)));
+    transform: translateY(-50%);
+    object-fit: contain;
+    object-position: center;
+  }
+  .touch-controls {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: var(--touch-dock-width);
+    min-height: 0;
+    padding: 10px 8px max(10px, env(safe-area-inset-bottom));
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    background: rgba(4, 13, 26, 0.9);
+    border-left: 1px solid rgba(0, 229, 255, 0.55);
+    pointer-events: auto;
+  }
+  .touch-joystick {
+    width: clamp(88px, 21vh, 118px);
+    height: clamp(88px, 21vh, 118px);
+    flex: 0 0 auto;
+  }
+  .touch-joystick-knob {
+    width: clamp(42px, 11vh, 58px);
+    height: clamp(42px, 11vh, 58px);
+  }
+  .touch-actions {
+    grid-template-columns: repeat(3, clamp(44px, 10vh, 58px));
+    gap: 6px;
+    justify-content: center;
+  }
+  .touch-action {
+    width: clamp(44px, 10vh, 58px);
+    height: clamp(44px, 10vh, 58px);
+    font-size: clamp(17px, 4.5vh, 23px);
+  }
+  .touch-action-interact { font-size: 13px; }
+}
+
 /* ============================================================
    ANIMACION DE FOCO GLOBAL
    Se aplica a cualquier elemento con .focused
