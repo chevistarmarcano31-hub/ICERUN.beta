@@ -348,7 +348,15 @@
       const canvas = document.getElementById('game');
       const rect = canvas.getBoundingClientRect();
       const hasMouse = Input._mx !== undefined && Input._my !== undefined;
-      if (this.controlId === 'p1' && hasMouse) {
+      if (this.controlId === 'p1' && hasTouchMove) {
+        this.aimAngle = Math.atan2(ty, tx);
+        this._lastAimAngle = this.aimAngle;
+      } else if (this.controlId === 'p1' && (dx !== 0 || dy !== 0)) {
+        // Keyboard movement also acts as the aim stick for keyboard-only play.
+        const keyboardLen = Math.hypot(dx, dy) || 1;
+        this.aimAngle = Math.atan2(dy / keyboardLen, dx / keyboardLen);
+        this._lastAimAngle = this.aimAngle;
+      } else if (this.controlId === 'p1' && hasMouse) {
         const mouseX = Input._mx * (CFG.W / rect.width);
         const mouseY = Input._my * (CFG.H / rect.height);
         const dxm = mouseX - this.x, dym = mouseY - this.y;
@@ -356,10 +364,6 @@
           this.aimAngle = Math.atan2(dym, dxm);
           this._lastAimAngle = this.aimAngle;
         }
-      }
-      if (!hasMouse && hasTouchMove) {
-        this.aimAngle = Math.atan2(ty, tx);
-        this._lastAimAngle = this.aimAngle;
       }
     }
 
