@@ -128,9 +128,26 @@ canvas#game {
     max-height: none;
     border-width: 0;
     border-radius: 0;
+    display: block;
+    --touch-dock-height: 158px;
+  }
+  canvas#game {
+    position: absolute;
+    z-index: 0;
+    top: calc((100% - var(--touch-dock-height)) / 2);
+    left: 50%;
+    width: min(100vw, calc(100dvh - var(--touch-dock-height)));
+    height: min(100vw, calc(100dvh - var(--touch-dock-height)));
+    transform: translate(-50%, -50%);
+    object-fit: contain;
+    object-position: center;
   }
   .touch-controls {
-    inset: auto 12px max(12px, env(safe-area-inset-bottom)) 12px;
+    position: absolute;
+    inset: auto 0 max(8px, env(safe-area-inset-bottom)) 0;
+    min-height: 138px;
+    padding: 0 12px;
+    align-items: center;
   }
   .touch-joystick {
     width: clamp(92px, 27vw, 132px);
@@ -181,4 +198,3 @@ canvas#game {
   50% { box-shadow: 0 0 0 8px rgba(255, 213, 79, 0.1), 0 0 32px rgba(255, 213, 79, 0.9); }
   100% { box-shadow: 0 0 0 0 rgba(255, 213, 79, 0.7), 0 0 18px rgba(255, 213, 79, 0.5); }
 }
-

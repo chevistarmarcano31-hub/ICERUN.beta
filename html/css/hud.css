@@ -243,8 +243,8 @@
   .hud-p2-position { top: max(8px, env(safe-area-inset-top)); left: 8px; margin-top: 58px; width: 116px; }
   .hud-rooms-position { top: max(8px, env(safe-area-inset-top)); right: 8px; }
   .hud-coins-position { top: 58px; right: 8px; }
-  .hud-stats-position { bottom: 8px; font-size: 10px; }
-  .hud-xp-position { bottom: 8px; left: 8px; width: 124px; min-width: 0; }
+  .hud-stats-position { bottom: calc(var(--touch-dock-height) + 8px); font-size: 10px; }
+  .hud-xp-position { bottom: calc(var(--touch-dock-height) + 8px); left: 8px; width: 124px; min-width: 0; }
   .hud-label { font-size: 8px; letter-spacing: 1px; }
   .hud-value { font-size: 12px; }
   .hud-text { font-size: 9px; }
@@ -254,7 +254,7 @@
   .challenge-icon { font-size: 14px; }
   .challenge-text { font-size: 8px; letter-spacing: .5px; }
   .ability-slot { display: none; }
-  .minimap { width: 104px; height: 104px; right: 8px !important; bottom: 92px !important; }
+  .minimap { width: 92px; height: 92px; right: 8px !important; top: 112px !important; bottom: auto !important; }
   .boss-lock-msg { width: 82vw; padding: 10px 12px; font-size: 10px; text-align: center; letter-spacing: 1px; }
 }
 
@@ -271,4 +271,3 @@
 }
 .minimap.faded { opacity: 0.22; }
 .minimap.hidden { display: none !important; }
-
