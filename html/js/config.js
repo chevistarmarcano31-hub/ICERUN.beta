@@ -23,7 +23,7 @@ const CFG = {
     damageMul: 2.0, knockback: 26,
   },
   BLOCK: {
-    cooldown: 10, activeTime: 360, damageReduction: 0.85,
+    cooldown: 500, activeTime: 360, damageReduction: 0.85,
   },
   LONG: {
     speed: 5.5, life: 1800, size: 22, cooldown: 3500,

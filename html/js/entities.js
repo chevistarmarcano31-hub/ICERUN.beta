@@ -87,11 +87,13 @@
   basicReady(now) { return now - this.lastBasic >= CFG.BASIC.cooldown * this._challengeFireRateMul; }
   blockReady(now) { return now >= this.blockCooldownUntil; }
   isBlocking(now) { return now < this.blockActiveUntil; }
+  canAttack(now) { return !this.isBlocking(now); }
 
   tryBlock(now) {
     if (!this.blockReady(now) || this.downed) return false;
     this.blockActiveUntil = now + CFG.BLOCK.activeTime;
     this.blockCooldownUntil = now + CFG.BLOCK.cooldown * this.cooldownMul;
+    this.meleeActiveUntil = 0;
     this.meleeAngle = this.aimAngle;
     this.invulnUntil = Math.max(this.invulnUntil, this.blockActiveUntil);
     Audio2.beep(740, 0.08, 0.12);
@@ -134,20 +136,20 @@
   }
 
   tryBasic(now) {
-    if (!this.basicReady(now)) return;
+    if (!this.canAttack(now) || !this.basicReady(now)) return;
     this.lastBasic = now;
     const ang = this.autoTarget ? this.autoAngle : this.aimAngle;
     this._fireBasic(ang);
   }
 
   tryBasicManual(now) {
-    if (!this.basicReady(now)) return;
+    if (!this.canAttack(now) || !this.basicReady(now)) return;
     this.lastBasic = now;
     this._fireBasic(this.aimAngle);
   }
 
   tryMelee(now) {
-    if (!this.meleeReady(now)) return;
+    if (!this.canAttack(now) || !this.meleeReady(now)) return;
     this.meleeActiveUntil = now + CFG.MELEE.activeTime;
     this.meleeAngle = this.aimAngle;
     this.meleeCooldownUntil = now + CFG.MELEE.cooldown * this.cooldownMul;
@@ -225,7 +227,7 @@
   }
 
   tryLong(now) {
-    if (!this.longReady(now)) return;
+    if (!this.canAttack(now) || !this.longReady(now)) return;
     this.longCooldownUntil = now + CFG.LONG.cooldown;
     const ang = this.aimAngle;
     const spawnX = this.x + Math.cos(ang) * 24;
