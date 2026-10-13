@@ -101,6 +101,23 @@
   line-height: 1.5;
   opacity: 0.9;
 }
+.levelup-card-select {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--ice-cyan);
+  border-radius: 6px;
+  color: var(--ice-neon);
+  background: rgba(0,229,255,0.14);
+  font: 700 10px 'Courier New', monospace;
+  letter-spacing: 2px;
+  touch-action: manipulation;
+}
+.levelup-card-select:active {
+  color: var(--ice-white);
+  background: rgba(0,229,255,0.38);
+}
 .levelup-hint {
   font-size: 11px;
   color: var(--ice-neon);
@@ -119,4 +136,5 @@
   .levelup-card-icon { font-size: 36px; margin-bottom: 5px; }
   .levelup-card-name { font-size: 13px; }
   .levelup-card-desc { font-size: 10px; }
+  .levelup-card-select { min-height: 44px; margin-top: 8px; }
 }

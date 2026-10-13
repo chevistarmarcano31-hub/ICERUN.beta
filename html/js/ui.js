@@ -826,12 +826,26 @@
           <div class="levelup-card-name">${perk.name}</div>
           <div class="levelup-card-desc">${perk.desc}</div>
         </div>
+        <button class="levelup-card-select" type="button">ELEGIR</button>
       `;
-      card.addEventListener('click', () => {
+      const select = () => {
+        if (card.dataset.selected === 'true') return;
+        card.dataset.selected = 'true';
         Audio2.buy();
         Gamepad.rumble(0.5, 150);
         this.show('battle');
         Game.applyLevelUpPerk(perk);
+      };
+      card.addEventListener('pointerup', event => {
+        if (event.pointerType === 'touch') {
+          event.preventDefault();
+          select();
+        }
+      });
+      card.addEventListener('click', select);
+      card.querySelector('.levelup-card-select').addEventListener('click', event => {
+        event.stopPropagation();
+        select();
       });
       grid.appendChild(card);
     }
@@ -1131,7 +1145,8 @@
     )).filter(el => {
       // Una tarjeta con botÃ³n debe ser un solo elemento navegable.
       // AsÃ­ el mando no se detiene en la tarjeta antes de llegar a CERRAR.
-      return !el.classList.contains('shop-item') || !el.querySelector('button');
+      return (!el.classList.contains('shop-item') && !el.classList.contains('levelup-card')) ||
+        !el.querySelector('button');
     });
     if (buttons.length === 0) return;
 
@@ -1278,4 +1293,3 @@ document.addEventListener('visibilitychange', () => {
     });
   }
 })();
-
