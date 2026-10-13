@@ -110,3 +110,13 @@
   flex-shrink: 0;
 }
 
+@media (max-width: 760px) {
+  .levelup-header { margin-bottom: 12px; }
+  .levelup-title { font-size: clamp(30px, 10vw, 44px); letter-spacing: 4px; }
+  .levelup-sub { font-size: 10px; letter-spacing: 1.5px; }
+  .levelup-grid { grid-template-columns: 1fr; gap: 10px; max-width: 340px; }
+  .levelup-card { min-height: 0; padding: 12px 10px; }
+  .levelup-card-icon { font-size: 36px; margin-bottom: 5px; }
+  .levelup-card-name { font-size: 13px; }
+  .levelup-card-desc { font-size: 10px; }
+}

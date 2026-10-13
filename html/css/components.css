@@ -301,4 +301,16 @@
   transition: width 0.3s ease-out;
 }
 
-
+@media (max-width: 760px) {
+  .inv-modal-stats { gap: 8px 14px; flex-wrap: wrap; justify-content: center; font-size: 11px; }
+  .inv-modal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .inv-modal-item { padding: 9px 6px; }
+  .inv-modal-icon, .shop-item-icon { font-size: 24px; }
+  .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 52vh; padding: 4px 6px 8px 4px; }
+  .shop-item { padding: 8px 6px; }
+  .shop-item-name { font-size: 10px; }
+  .shop-item-desc { font-size: 8px; }
+  .shop-footer { gap: 10px; font-size: 11px; flex-wrap: wrap; justify-content: center; }
+  #toasts { top: 58px; max-width: 88vw; }
+  .toast { padding: 7px 11px; font-size: 10px; text-align: center; }
+}

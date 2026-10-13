@@ -636,6 +636,76 @@
    ENEMY
    ================================================================ */
 
+function drawCreatureMark(ctx, enemy, color) {
+  const size = enemy.size;
+  const key = enemy.typeKey;
+  const ranged = enemy.def.behavior.startsWith('ranged_') ||
+    enemy.def.behavior.startsWith('shoot_');
+  const heavy = enemy.isElite || size >= 19;
+
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(1.5, size * 0.12);
+  ctx.lineJoin = 'round';
+
+  if (key.includes('ice_hound')) {
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.9, size * 0.35);
+    ctx.lineTo(-size * 0.55, -size * 0.7);
+    ctx.lineTo(-size * 0.15, -size * 0.35);
+    ctx.lineTo(size * 0.25, -size * 0.8);
+    ctx.lineTo(size * 0.85, size * 0.2);
+    ctx.lineTo(size * 0.35, size * 0.7);
+    ctx.lineTo(-size * 0.45, size * 0.7);
+    ctx.closePath();
+    ctx.stroke();
+  } else if (ranged) {
+    ctx.beginPath();
+    ctx.moveTo(0, -size * 0.9);
+    ctx.lineTo(size * 0.75, size * 0.65);
+    ctx.lineTo(-size * 0.75, size * 0.65);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.45, size * 0.1);
+    ctx.lineTo(size * 0.45, size * 0.1);
+    ctx.stroke();
+  } else if (key.includes('shard_knight')) {
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.8, size * 0.55);
+    ctx.lineTo(-size * 0.55, -size * 0.65);
+    ctx.lineTo(size * 0.1, -size);
+    ctx.lineTo(size * 0.8, -size * 0.25);
+    ctx.lineTo(size * 0.55, size * 0.7);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(size * 0.1, -size * 0.65);
+    ctx.lineTo(size * 0.1, size * 0.5);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.8, size * 0.7);
+    ctx.lineTo(-size * 0.9, -size * 0.2);
+    ctx.lineTo(-size * 0.45, -size * 0.85);
+    ctx.lineTo(0, -size * 0.55);
+    ctx.lineTo(size * 0.45, -size * 0.85);
+    ctx.lineTo(size * 0.9, -size * 0.2);
+    ctx.lineTo(size * 0.8, size * 0.7);
+    ctx.closePath();
+    heavy ? ctx.fill() : ctx.stroke();
+  }
+
+  ctx.fillStyle = '#071a2e';
+  ctx.beginPath();
+  ctx.arc(-size * 0.3, -size * 0.12, Math.max(1.5, size * 0.1), 0, Math.PI * 2);
+  ctx.arc(size * 0.3, -size * 0.12, Math.max(1.5, size * 0.1), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 
 /* ===== enemy.js ===== */
 class Enemy {
@@ -908,12 +978,7 @@ class Enemy {
       : slowed ? '#7dffff'
       : this.def.color;
     ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(this.x - 4, this.y - 2, 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(this.x + 4, this.y - 2, 2, 0, Math.PI*2); ctx.fill();
-    ctx.font = `${Math.floor(this.size * 1.1)}px sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(this.def.icon, this.x, this.y + 1);
+    drawCreatureMark(ctx, this, '#071a2e');
     if (this.hp < this.maxHp) {
       const w = this.size * 2;
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
@@ -1151,9 +1216,17 @@ class Boss {
     ctx.shadowBlur = 0;
     ctx.restore();
 
-    ctx.font = `${this.size}px sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(this.icon, this.x, this.y);
+    ctx.save();
+    ctx.fillStyle = slowed ? '#7dffff' : (this.charging ? '#ffd54f' : '#ff3d71');
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#071a2e';
+    ctx.beginPath();
+    ctx.arc(this.x - this.size * 0.12, this.y - this.size * 0.04, 3, 0, Math.PI * 2);
+    ctx.arc(this.x + this.size * 0.12, this.y - this.size * 0.04, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 }
 

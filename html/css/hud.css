@@ -232,6 +232,32 @@
 }
 .boss-inline-hp { font-size: 10px; color: var(--ice-white); font-weight: bold; }
 
+@media (max-width: 760px) {
+  .hud-element {
+    padding: 5px 7px;
+    min-width: 0;
+    border-radius: 6px;
+    backdrop-filter: blur(3px);
+  }
+  .hud-hp-position { top: max(8px, env(safe-area-inset-top)); left: 8px; width: 116px; }
+  .hud-p2-position { top: max(8px, env(safe-area-inset-top)); left: 8px; margin-top: 58px; width: 116px; }
+  .hud-rooms-position { top: max(8px, env(safe-area-inset-top)); right: 8px; }
+  .hud-coins-position { top: 58px; right: 8px; }
+  .hud-stats-position { bottom: 8px; font-size: 10px; }
+  .hud-xp-position { bottom: 8px; left: 8px; width: 124px; min-width: 0; }
+  .hud-label { font-size: 8px; letter-spacing: 1px; }
+  .hud-value { font-size: 12px; }
+  .hud-text { font-size: 9px; }
+  .hud-top-center-position { top: max(8px, env(safe-area-inset-top)); max-width: 42vw; }
+  .top-center-row { gap: 5px; }
+  .challenge-badge { max-width: 42vw; padding: 4px 6px; gap: 4px; }
+  .challenge-icon { font-size: 14px; }
+  .challenge-text { font-size: 8px; letter-spacing: .5px; }
+  .ability-slot { display: none; }
+  .minimap { width: 104px; height: 104px; right: 8px !important; bottom: 92px !important; }
+  .boss-lock-msg { width: 82vw; padding: 10px 12px; font-size: 10px; text-align: center; letter-spacing: 1px; }
+}
+
 /* Minimapa */
 .minimap {
   position: absolute;
@@ -245,5 +271,4 @@
 }
 .minimap.faded { opacity: 0.22; }
 .minimap.hidden { display: none !important; }
-
 

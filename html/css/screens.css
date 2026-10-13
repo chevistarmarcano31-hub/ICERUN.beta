@@ -278,6 +278,29 @@
   font-size:9px;
   overflow-wrap:anywhere;
 }
+
+@media (max-width: 760px) {
+  .overlay {
+    padding: max(16px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
+    justify-content: flex-start;
+  }
+  .title { font-size: clamp(38px, 13vw, 64px); letter-spacing: 6px; margin-top: 8vh; }
+  .subtitle { font-size: 10px; letter-spacing: 2px; margin-bottom: 24px; }
+  .screen-title { font-size: clamp(19px, 6vw, 28px); letter-spacing: 2px; margin-bottom: 14px; }
+  .btn {
+    width: min(100%, 320px);
+    min-width: 0;
+    min-height: 48px;
+    padding: 12px 14px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+  }
+  .lobby-stats { gap: 12px; font-size: 11px; flex-wrap: wrap; justify-content: center; }
+  .keybind-list, .stats-grid { grid-template-columns: 1fr; gap: 7px; }
+  .customization-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .customization-card { min-height: 82px; padding: 7px; }
+  .customization-card-preview { width: 52px; height: 52px; }
+}
 .stat-row {
   display:flex; justify-content:space-between;
   padding:10px 14px;
@@ -418,5 +441,4 @@
   padding: 12px 22px;
   box-shadow: 0 0 30px rgba(255,213,79,0.6);
 }
-
 
