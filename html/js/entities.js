@@ -1,17 +1,11 @@
-﻿class Player {
+class Player {
   constructor(stats, controlId = 'p1') {
     this.controlId = controlId;
     this.spriteId = controlId === 'p2'
       ? (save.customization.p2 || 'personaje-1')
       : (save.customization.p1 || save.customization.sprite || 'default');
-    this.controls = controlId === 'p2'
-      ? { up:'arrowup', down:'arrowdown', left:'arrowleft', right:'arrowright',
-          basic:'j', melee:'k', long:'l', dash:'0', block:'i', interact:'9',
-          consumables:['6','7','8','5'] }
-      : { up:save.keybinds.up, down:save.keybinds.down, left:save.keybinds.left,
-          right:save.keybinds.right, basic:save.keybinds.basic, melee:save.keybinds.melee,
-          long:save.keybinds.long, dash:save.keybinds.dash, block:save.keybinds.block || 'f', interact:'e',
-          consumables:['1','2','3','4'] };
+    this.controls = this.buildControls();
+    this._controlsSig = this._controlsSignature();
     this.x = CFG.W / 2;
     this.y = CFG.H - 100;
     this.size = CFG.PLAYER.size;
@@ -79,6 +73,38 @@
     this._challengeFireRateMul = cs.playerFireRateMul || 1;
     this._challengeCritDmgMul = cs.critDamageMul || 2;
   }
+
+  buildControls() {
+    if (this.controlId === 'p2') {
+      return { up:'arrowup', down:'arrowdown', left:'arrowleft', right:'arrowright',
+        basic:'j', melee:'k', long:'l', dash:'0', block:'i', interact:'9',
+        consumables:['6','7','8','5'] };
+    }
+    const kb = save.keybinds;
+    return {
+      up: kb.up, down: kb.down, left: kb.left, right: kb.right,
+      basic: kb.basic, melee: kb.melee, long: kb.long,
+      dash: kb.dash, block: kb.block || 'f', interact: kb.interact || 'e',
+      consumables: ['1','2','3','4'],
+    };
+  }
+
+  _controlsSignature() {
+    if (this.controlId === 'p2') return 'p2';
+    const kb = save.keybinds;
+    return [kb.up, kb.down, kb.left, kb.right, kb.basic, kb.melee,
+      kb.long, kb.dash, kb.block, kb.interact].join('|');
+  }
+
+  // Relee save.keybinds para que el remapeo se aplique al instante,
+  // sin esperar a que termine la run.
+  syncControls() {
+    const sig = this._controlsSignature();
+    if (sig === this._controlsSig) return;
+    this._controlsSig = sig;
+    this.controls = this.buildControls();
+  }
+
   isDashing(now) { return now < this.dashActiveUntil; }
   dashReady(now) { return now >= this.dashCooldownUntil; }
   meleeReady(now) { return now >= this.meleeCooldownUntil; }
@@ -91,6 +117,7 @@
 
   tryBlock(now) {
     if (!this.blockReady(now) || this.downed) return false;
+    Game.markCombat();
     this.blockActiveUntil = now + CFG.BLOCK.activeTime;
     this.blockCooldownUntil = now + CFG.BLOCK.cooldown * this.cooldownMul;
     this.meleeActiveUntil = 0;
@@ -104,6 +131,7 @@
 
   _fireBasic(ang) {
     const now = performance.now();
+    Game.markCombat();
     const rageMul = (now < this.rageUntil) ? 1.6 : 1.0;
     const crit = Math.random() < this.crit;
     const critMul = crit ? this._challengeCritDmgMul : 1;
@@ -150,6 +178,7 @@
 
   tryMelee(now) {
     if (!this.canAttack(now) || !this.meleeReady(now)) return;
+    Game.markCombat();
     this.meleeActiveUntil = now + CFG.MELEE.activeTime;
     this.meleeAngle = this.aimAngle;
     this.meleeCooldownUntil = now + CFG.MELEE.cooldown * this.cooldownMul;
@@ -228,6 +257,7 @@
 
   tryLong(now) {
     if (!this.canAttack(now) || !this.longReady(now)) return;
+    Game.markCombat();
     this.longCooldownUntil = now + CFG.LONG.cooldown;
     const ang = this.aimAngle;
     const spawnX = this.x + Math.cos(ang) * 24;
@@ -257,6 +287,7 @@
 
   tryDash(now) {
     if (!this.dashReady(now)) return;
+    Game.markCombat();
     let dx = 0, dy = 0;
     const kb = this.controls;
     if (Input.keys[kb.up])    dy -= 1;
@@ -291,6 +322,7 @@
   }
 
   update(dt, now) {
+    this.syncControls();
     if (this.downed) return;
     let dx = 0, dy = 0;
     const kb = this.controls;
@@ -397,7 +429,7 @@
 
     if (this.controlId === 'p1' && Gamepad.connected) {
       const M = Gamepad.MAPPING;
-      if (Gamepad.justPressed(M.dash) || Gamepad.justPressed(M.dashAlt)) this.tryDash(now);
+      if (Gamepad.justPressed(M.dash)) this.tryDash(now);
       if (Gamepad.justPressed(M.block)) this.tryBlock(now);
       if (Gamepad.justPressed(M.melee)) {
         const nearStall = Game._nearestStall(this);
@@ -412,7 +444,7 @@
         }
       }
       if (Gamepad.justPressed(M.long))  this.tryLong(now);
-      if (Gamepad.isDown(M.basic) || Gamepad.isDown(M.basicAlt)) this.tryBasicManual(now);
+      if (Gamepad.isDown(M.basic)) this.tryBasicManual(now);
 
       if (Gamepad.justPressed(12)) { const s = UI.getConsumableSlots(); if (s[0]) Game.useConsumable(s[0].id, this); }
       if (Gamepad.justPressed(15)) { const s = UI.getConsumableSlots(); if (s[1]) Game.useConsumable(s[1].id, this); }
@@ -468,6 +500,7 @@
     let finalAmount = amount * (this._challengeTakenMul || 1);
     const reduced = Math.max(1, finalAmount - this.def);
     this.hp -= reduced;
+    Game.markCombat();
     this.invulnUntil = now + CFG.PLAYER.invulnTime;
     this.hitFlash = 12;
     Audio2.hurt();
@@ -479,7 +512,7 @@
         this.hp = Math.floor(this.maxHp * this.revivePct);
         this.invulnUntil = now + 2000;
         Game.spawnParticles(this.x, this.y, '#ffd54f', 40);
-        UI.toast('ðŸ’  Â¡REVIVES!', 'gold');
+        UI.toast('💠 ¡REVIVES!', 'gold');
         Gamepad.rumble(1.0, 400);
         UI.updateHud();
         return;
@@ -497,10 +530,10 @@
       ctx.font = '26px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('âš°', this.x, this.y);
+      ctx.fillText('⚰', this.x, this.y);
       ctx.font = 'bold 11px monospace';
       ctx.fillStyle = '#ffd54f';
-      ctx.fillText(this.controlId === 'p2' ? 'P2 CAÃDO Â· 9' : 'P1 CAÃDO Â· E', this.x, this.y - 25);
+      ctx.fillText(this.controlId === 'p2' ? 'P2 CAÍDO · 9' : 'P1 CAÍDO · E', this.x, this.y - 25);
       ctx.restore();
       return;
     }
@@ -642,75 +675,293 @@
    ENEMY
    ================================================================ */
 
-function drawCreatureMark(ctx, enemy, color) {
-  const size = enemy.size;
-  const key = enemy.typeKey;
-  const ranged = enemy.def.behavior.startsWith('ranged_') ||
-    enemy.def.behavior.startsWith('shoot_');
-  const heavy = enemy.isElite || size >= 19;
+/* ================================================================
+   CRIATURAS — dibujo vectorial por arquetipo (sin emojis, mismo
+   aspecto en cualquier dispositivo).
+   ================================================================ */
+function creatureArchetype(key) {
+  if (key.includes('ice_hound')) return 'hound';
+  if (key.includes('shard_knight')) return 'knight';
+  if (key.includes('rime_brute')) return 'golem';
+  if (key.includes('void_reaver')) return 'reaver';
+  if (key.includes('frost_archer') || key.includes('storm_ranger')) return 'archer';
+  if (key.includes('bone_sniper')) return 'skull';
+  if (key.includes('crystal_sentinel')) return 'crystal';
+  if (key.includes('dusk_witch')) return 'witch';
+  if (key.includes('frostling')) return 'shard';
+  if (key === 'ranged_elite') return 'mage';
+  if (key === 'ranged_basic') return 'ghost';
+  return 'demon';
+}
+
+function creatureRoundRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function creatureEyes(ctx, s, dy = 0, sep = 0.28, r = 0.13) {
+  ctx.fillStyle = '#06121f';
+  ctx.beginPath();
+  ctx.arc(-s * sep, dy, Math.max(1.2, s * r), 0, Math.PI * 2);
+  ctx.arc(s * sep, dy, Math.max(1.2, s * r), 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCreature(ctx, enemy, color) {
+  const s = enemy.size;
+  const dark = '#06121f';
+  const arch = creatureArchetype(enemy.typeKey);
 
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = Math.max(1.5, size * 0.12);
   ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.fillStyle = color;
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = Math.max(1.1, s * 0.13);
 
-  if (key.includes('ice_hound')) {
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.9, size * 0.35);
-    ctx.lineTo(-size * 0.55, -size * 0.7);
-    ctx.lineTo(-size * 0.15, -size * 0.35);
-    ctx.lineTo(size * 0.25, -size * 0.8);
-    ctx.lineTo(size * 0.85, size * 0.2);
-    ctx.lineTo(size * 0.35, size * 0.7);
-    ctx.lineTo(-size * 0.45, size * 0.7);
-    ctx.closePath();
-    ctx.stroke();
-  } else if (ranged) {
-    ctx.beginPath();
-    ctx.moveTo(0, -size * 0.9);
-    ctx.lineTo(size * 0.75, size * 0.65);
-    ctx.lineTo(-size * 0.75, size * 0.65);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.45, size * 0.1);
-    ctx.lineTo(size * 0.45, size * 0.1);
-    ctx.stroke();
-  } else if (key.includes('shard_knight')) {
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.8, size * 0.55);
-    ctx.lineTo(-size * 0.55, -size * 0.65);
-    ctx.lineTo(size * 0.1, -size);
-    ctx.lineTo(size * 0.8, -size * 0.25);
-    ctx.lineTo(size * 0.55, size * 0.7);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(size * 0.1, -size * 0.65);
-    ctx.lineTo(size * 0.1, size * 0.5);
-    ctx.stroke();
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.8, size * 0.7);
-    ctx.lineTo(-size * 0.9, -size * 0.2);
-    ctx.lineTo(-size * 0.45, -size * 0.85);
-    ctx.lineTo(0, -size * 0.55);
-    ctx.lineTo(size * 0.45, -size * 0.85);
-    ctx.lineTo(size * 0.9, -size * 0.2);
-    ctx.lineTo(size * 0.8, size * 0.7);
-    ctx.closePath();
-    heavy ? ctx.fill() : ctx.stroke();
+  switch (arch) {
+    case 'hound': {
+      ctx.beginPath();
+      ctx.ellipse(0, s * 0.18, s * 0.95, s * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.lineWidth = Math.max(1.4, s * 0.18);
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.85, s * 0.05);
+      ctx.quadraticCurveTo(-s * 1.3, -s * 0.3, -s * 1.05, -s * 0.7);
+      ctx.stroke();
+      ctx.lineWidth = Math.max(1.1, s * 0.13);
+      ctx.beginPath();
+      ctx.arc(s * 0.72, -s * 0.3, s * 0.48, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(s * 0.4, -s * 0.62);
+      ctx.lineTo(s * 0.32, -s * 1.12);
+      ctx.lineTo(s * 0.72, -s * 0.78);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(s * 0.95, -s * 0.62);
+      ctx.lineTo(s * 1.15, -s * 1.0);
+      ctx.lineTo(s * 1.28, -s * 0.5);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(s * 1.02, -s * 0.18);
+      ctx.lineTo(s * 1.38, s * 0.02);
+      ctx.lineTo(s * 0.98, s * 0.14);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dark;
+      ctx.beginPath(); ctx.arc(s * 0.8, -s * 0.38, Math.max(1.2, s * 0.1), 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+    case 'ghost': {
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.2, s * 0.8, Math.PI, 0);
+      ctx.lineTo(s * 0.8, s * 0.45);
+      for (let i = 0; i < 3; i++) {
+        const x0 = s * 0.8 - i * s * 0.53;
+        ctx.quadraticCurveTo(x0 - s * 0.14, s * 0.92, x0 - s * 0.27, s * 0.45);
+      }
+      ctx.lineTo(-s * 0.8, -s * 0.2);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      creatureEyes(ctx, s, -s * 0.28, 0.3, 0.14);
+      break;
+    }
+    case 'mage': {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.75, s * 0.95);
+      ctx.lineTo(-s * 0.4, -s * 0.05);
+      ctx.lineTo(s * 0.4, -s * 0.05);
+      ctx.lineTo(s * 0.75, s * 0.95);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 0.72, s * 0.62, s * 0.17, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.22, -s * 0.78);
+      ctx.lineTo(0, -s * 1.5);
+      ctx.lineTo(s * 0.22, -s * 0.78);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 0.32, s * 0.32, s * 0.28, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      creatureEyes(ctx, s, -s * 0.36, 0.16, 0.09);
+      break;
+    }
+    case 'shard': {
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.1);
+      ctx.lineTo(s * 0.85, -s * 0.1);
+      ctx.lineTo(s * 0.5, s * 0.98);
+      ctx.lineTo(-s * 0.5, s * 0.98);
+      ctx.lineTo(-s * 0.85, -s * 0.1);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.1); ctx.lineTo(0, s * 0.98);
+      ctx.moveTo(-s * 0.85, -s * 0.1); ctx.lineTo(s * 0.85, -s * 0.1);
+      ctx.stroke();
+      creatureEyes(ctx, s, -s * 0.3, 0.26, 0.11);
+      break;
+    }
+    case 'knight': {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.7, s * 0.95);
+      ctx.lineTo(-s * 0.5, -s * 0.35);
+      ctx.lineTo(s * 0.5, -s * 0.35);
+      ctx.lineTo(s * 0.7, s * 0.95);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -s * 0.52, s * 0.45, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dark;
+      ctx.fillRect(-s * 0.3, -s * 0.64, s * 0.6, s * 0.16);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.95);
+      ctx.lineTo(s * 0.12, -s * 1.32);
+      ctx.lineTo(s * 0.32, -s * 0.9);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.98, -s * 0.15);
+      ctx.lineTo(-s * 0.55, -s * 0.02);
+      ctx.lineTo(-s * 0.6, s * 0.6);
+      ctx.lineTo(-s * 0.98, s * 0.38);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      break;
+    }
+    case 'golem': {
+      creatureRoundRect(ctx, -s * 0.85, -s * 0.5, s * 1.7, s * 1.4, s * 0.24);
+      ctx.fill(); ctx.stroke();
+      creatureRoundRect(ctx, -s * 0.42, -s * 1.06, s * 0.84, s * 0.62, s * 0.14);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-s * 0.82, -s * 0.32, s * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(s * 0.82, -s * 0.32, s * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.3, s * 0.02); ctx.lineTo(-s * 0.08, s * 0.32); ctx.lineTo(-s * 0.24, s * 0.66);
+      ctx.stroke();
+      creatureEyes(ctx, s, -s * 0.78, 0.18, 0.1);
+      break;
+    }
+    case 'reaver': {
+      const spikes = 8;
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+        const r = i % 2 === 0 ? s * 0.95 : s * 0.62;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = Math.max(1.3, s * 0.15);
+      ctx.beginPath();
+      for (let i = -1; i <= 1; i++) {
+        ctx.moveTo(i * s * 0.32, s * 0.7);
+        ctx.quadraticCurveTo(i * s * 0.55, s * 1.15, i * s * 0.32, s * 1.35);
+      }
+      ctx.stroke();
+      ctx.fillStyle = dark;
+      ctx.beginPath(); ctx.arc(0, -s * 0.08, s * 0.22, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(0, -s * 0.08, s * 0.1, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+    case 'archer': {
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.1);
+      ctx.lineTo(s * 0.62, s * 0.2);
+      ctx.lineTo(s * 0.3, s * 0.95);
+      ctx.lineTo(-s * 0.3, s * 0.95);
+      ctx.lineTo(-s * 0.62, s * 0.2);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = Math.max(1.4, s * 0.15);
+      ctx.beginPath();
+      ctx.arc(s * 0.9, 0, s * 0.52, -Math.PI * 0.42, Math.PI * 0.42);
+      ctx.stroke();
+      ctx.lineWidth = Math.max(1, s * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(s * 1.0, -s * 0.48);
+      ctx.lineTo(s * 1.0, s * 0.48);
+      ctx.stroke();
+      creatureEyes(ctx, s, -s * 0.35, 0.22, 0.11);
+      break;
+    }
+    case 'crystal': {
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.05);
+      ctx.lineTo(s * 0.55, -s * 0.2);
+      ctx.lineTo(s * 0.35, s * 0.92);
+      ctx.lineTo(-s * 0.35, s * 0.92);
+      ctx.lineTo(-s * 0.55, -s * 0.2);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.05); ctx.lineTo(0, s * 0.92);
+      ctx.moveTo(-s * 0.55, -s * 0.2); ctx.lineTo(s * 0.55, -s * 0.2);
+      ctx.stroke();
+      ctx.fillStyle = dark;
+      ctx.beginPath(); ctx.arc(0, -s * 0.12, Math.max(1.4, s * 0.16), 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+    case 'witch': {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.8, s * 0.95);
+      ctx.lineTo(-s * 0.35, -s * 0.05);
+      ctx.lineTo(s * 0.35, -s * 0.05);
+      ctx.lineTo(s * 0.8, s * 0.95);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.6, s * 0.75, s * 0.18, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.28, -s * 0.7);
+      ctx.lineTo(s * 0.16, -s * 1.48);
+      ctx.lineTo(s * 0.36, -s * 0.7);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 0.24, s * 0.3, s * 0.26, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      creatureEyes(ctx, s, -s * 0.27, 0.15, 0.085);
+      ctx.lineWidth = Math.max(1.2, s * 0.09);
+      ctx.beginPath(); ctx.moveTo(s * 0.8, s * 1.0); ctx.lineTo(s * 0.95, -s * 0.5); ctx.stroke();
+      break;
+    }
+    case 'skull': {
+      ctx.beginPath(); ctx.arc(0, -s * 0.2, s * 0.72, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      creatureRoundRect(ctx, -s * 0.35, s * 0.32, s * 0.7, s * 0.38, s * 0.08);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dark;
+      ctx.beginPath();
+      ctx.arc(-s * 0.28, -s * 0.24, s * 0.18, 0, Math.PI * 2);
+      ctx.arc(s * 0.28, -s * 0.24, s * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.02); ctx.lineTo(s * 0.1, s * 0.14); ctx.lineTo(-s * 0.1, s * 0.14);
+      ctx.closePath(); ctx.fill();
+      ctx.lineWidth = Math.max(1, s * 0.06);
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath(); ctx.moveTo(i * s * 0.15, s * 0.4); ctx.lineTo(i * s * 0.15, s * 0.62); ctx.stroke();
+      }
+      break;
+    }
+    default: {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.55, -s * 0.55); ctx.lineTo(-s * 1.0, -s * 1.05); ctx.lineTo(-s * 0.15, -s * 0.8);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(s * 0.55, -s * 0.55); ctx.lineTo(s * 1.0, -s * 1.05); ctx.lineTo(s * 0.15, -s * 0.8);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, s * 0.85, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      creatureEyes(ctx, s, -s * 0.1, 0.3, 0.14);
+      ctx.lineWidth = Math.max(1, s * 0.09);
+      ctx.beginPath(); ctx.arc(0, s * 0.3, s * 0.3, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+      break;
+    }
   }
 
-  ctx.fillStyle = '#071a2e';
-  ctx.beginPath();
-  ctx.arc(-size * 0.3, -size * 0.12, Math.max(1.5, size * 0.1), 0, Math.PI * 2);
-  ctx.arc(size * 0.3, -size * 0.12, Math.max(1.5, size * 0.1), 0, Math.PI * 2);
-  ctx.fill();
   ctx.restore();
 }
+
 
 
 /* ===== enemy.js ===== */
@@ -943,6 +1194,7 @@ class Enemy {
 
     this.hp -= finalAmount;
     this.hitFlash = 6;
+    Game.markCombat();
 
     if (options.slowDuration) {
       const slowBonus = (Game.floorChallenge?.apply?.slowBonus) || 1;
@@ -973,18 +1225,11 @@ class Enemy {
   }
   draw(ctx, now) {
     const slowed = this.slowUntil && now < this.slowUntil;
-    if (this.isElite) {
-      const aura = ctx.createRadialGradient(this.x, this.y, this.size, this.x, this.y, this.size + 14);
-      aura.addColorStop(0, this.def.color + 'aa');
-      aura.addColorStop(1, this.def.color + '00');
-      ctx.fillStyle = aura;
-      ctx.beginPath(); ctx.arc(this.x, this.y, this.size + 14, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.fillStyle = this.hitFlash > 0 ? '#fff'
+    const color = this.hitFlash > 0 ? '#ffffff'
       : slowed ? '#7dffff'
       : this.def.color;
-    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
-    drawCreatureMark(ctx, this, '#071a2e');
+    if (this.isElite) Fx.drawGlow(ctx, this.x, this.y, this.size + 14, this.def.color, 0.65, this.size);
+    drawCreature(ctx, this, color);
     if (this.hp < this.maxHp) {
       const w = this.size * 2;
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
@@ -1060,7 +1305,7 @@ class Boss {
       } else {
         this.charging = false;
         this.chargeVx = 0; this.chargeVy = 0;
-        UI.toast('ðŸ’¥ Â¡El jefe choca contra el muro!', 'gold');
+        UI.toast('💥 ¡El jefe choca contra el muro!', 'gold');
       }
       this.chargeVx *= 0.94; this.chargeVy *= 0.94;
       if (Math.abs(this.chargeVx) < 0.5 && Math.abs(this.chargeVy) < 0.5) {
@@ -1105,7 +1350,7 @@ class Boss {
       e.isMinion = true;
       Game.enemies.push(e);
     }
-    UI.toast('âš  El jefe invoca minions', 'danger');
+    UI.toast('⚠ El jefe invoca minions', 'danger');
   }
 
   attack() {
@@ -1145,7 +1390,7 @@ class Boss {
         this.chargeVx = Math.cos(aim) * Util.rand(12, 16);
         this.chargeVy = Math.sin(aim) * Util.rand(12, 16);
         this.charging = true;
-        UI.toast('âš  Â¡Embestida!', 'danger');
+        UI.toast('⚠ ¡Embestida!', 'danger');
         break;
       }
       case 'spiral': {
@@ -1172,7 +1417,7 @@ class Boss {
       case 'slam': {
         const n = Util.randInt(6, 10);
         for (let i = 0; i < n; i++) spawn((i/n)*Math.PI*2, Util.rand(2.2, 2.8), '#ff3d71');
-        UI.toast('âš  Â¡Golpe de Ã¡rea!', 'danger');
+        UI.toast('⚠ ¡Golpe de área!', 'danger');
         break;
       }
     }

@@ -1,4 +1,4 @@
-﻿const Audio2 = {
+const Audio2 = {
   ctx: null,
   init() {
     if (this.ctx) return;
@@ -55,7 +55,7 @@ const Input = {
         e.preventDefault();
         if (Game.battleActive && !Game.paused) UI.toggleInventoryModal();
       }
-      if (k === 'e' && Game.battleActive && !Game.paused) {
+      if (k === (save.keybinds.interact || 'e') && Game.battleActive && !Game.paused) {
         Game.tryInteract();
       }
       if (['1','2','3','4'].includes(k) && Game.battleActive && !Game.paused) {
@@ -73,7 +73,10 @@ const Input = {
     window.addEventListener('mouseup', e => {
       if (e.button === 0) this.mouseDown = false;
     });
-    window.addEventListener('blur', () => { this.mouseDown = false; });
+    window.addEventListener('blur', () => {
+      this.mouseDown = false;
+      this.keys = {};
+    });
     this.initTouchControls();
   },
 
@@ -151,10 +154,22 @@ const Input = {
 
 /* ===== gamepad.js ===== */
 /* ================================================================
-   ICE RUN â€” gamepad.js v5
-   DetecciÃ³n de marca + snapshots separados + polling de seguridad.
+   ICE RUN — gamepad.js v5
+   Detección de marca + snapshots separados + polling de seguridad.
    ================================================================ */
 'use strict';
+
+const DEFAULT_GAMEPAD_MAPPING = {
+  basic:      7,  // RT
+  melee:      2,  // X / □
+  long:       3,  // Y / △
+  dash:       1,  // B / ○
+  block:      0,  // A / ✕
+  pause:      9,  // Start / Options
+  inventory:  8,  // Back / Share
+  confirm:    0,  // A / ✕
+  cancel:     1,  // B / ○
+};
 
 const Gamepad = {
   connected: false,
@@ -170,45 +185,74 @@ const Gamepad = {
   _axisSnapshot: { lx:0, ly:0, rx:0, ry:0 },
   _pollIntervalId: null,
 
-  MAPPING: {
-    basic:      7,
-    basicAlt:   5,
-    melee:      2,
-    long:       3,
-    dash:       1,
-    dashAlt:    4,
-    block:      0,
-    pause:      9,
-    inventory:  8,
-    confirm:    0,
-    cancel:     1,
+  // Mapeo vivo: se lee de save.gamepad, así que se puede cambiar en caliente.
+  get MAPPING() {
+    return (typeof save !== 'undefined' && save.gamepad) ? save.gamepad : DEFAULT_GAMEPAD_MAPPING;
+  },
+
+  defaultMapping() {
+    return { ...DEFAULT_GAMEPAD_MAPPING };
+  },
+
+  buttonName(index) {
+    const i = Number(index);
+    if (!Number.isInteger(i) || i < 0) return '—';
+    const brand = this._getBrand();
+    const names = {
+      xbox:    ['A','B','X','Y','LB','RB','LT','RT','Vista','Menú','L3','R3','D-Pad ↑','D-Pad ↓','D-Pad ←','D-Pad →'],
+      ps:      ['✕','○','□','△','L1','R1','L2','R2','SHARE','OPTIONS','L3','R3','D-Pad ↑','D-Pad ↓','D-Pad ←','D-Pad →'],
+      switch:  ['B','A','Y','X','L','R','ZL','ZR','−','+','L3','R3','D-Pad ↑','D-Pad ↓','D-Pad ←','D-Pad →'],
+      '8bitdo':['A','B','X','Y','L1','R1','L2','R2','−','+','L3','R3','D-Pad ↑','D-Pad ↓','D-Pad ←','D-Pad →'],
+    };
+    const table = names[brand] || names.xbox;
+    return table[i] || `Botón ${i}`;
+  },
+
+  pressedList() {
+    const gp = this.get();
+    if (!gp) return [];
+    const out = [];
+    for (let i = 0; i < gp.buttons.length; i++) {
+      const b = gp.buttons[i];
+      if (b && (b.pressed || b.value > 0.5)) out.push(i);
+    }
+    return out;
+  },
+
+  isStandardMapping() {
+    const gp = this.get();
+    return !!gp && gp.mapping === 'standard';
+  },
+
+  scan() {
+    if (!navigator.getGamepads) return false;
+    const pads = navigator.getGamepads();
+    let found = null;
+    for (let i = 0; i < pads.length; i++) {
+      if (pads[i] && pads[i].connected) { found = pads[i]; break; }
+    }
+    if (found && !this.connected) this._onConnect(found);
+    else if (!found && this.connected) this._onDisconnect({ index: this.index });
+    return this.connected;
   },
 
   init() {
     if (!navigator.getGamepads) {
-      console.warn('âš  Gamepad API no soportada en este navegador');
+      console.warn('⚠ Gamepad API no soportada en este navegador');
       return;
     }
     window.addEventListener('gamepadconnected', e => this._onConnect(e.gamepad));
     window.addEventListener('gamepaddisconnected', e => this._onDisconnect(e.gamepad));
 
-    const pads = navigator.getGamepads();
-    for (let i = 0; i < pads.length; i++) {
-      if (pads[i]) { this._onConnect(pads[i]); break; }
-    }
+    this.scan();
 
-    this._pollIntervalId = setInterval(() => {
-      const pads = navigator.getGamepads();
-      let found = null;
-      for (let i = 0; i < pads.length; i++) {
-        if (pads[i] && pads[i].connected) { found = pads[i]; break; }
-      }
-      if (found && !this.connected) {
-        this._onConnect(found);
-      } else if (!found && this.connected) {
-        this._onDisconnect({ index: this.index });
-      }
-    }, 800);
+    // Chrome/Edge solo exponen el mando tras una pulsación, así que además
+    // del sondeo periódico se reintenta al primer gesto del usuario.
+    const rescan = () => this.scan();
+    window.addEventListener('pointerdown', rescan);
+    window.addEventListener('keydown', rescan);
+
+    this._pollIntervalId = setInterval(() => this.scan(), 500);
   },
 
   _onConnect(gp) {
@@ -217,15 +261,19 @@ const Gamepad = {
     this.connected = true;
     this.index = gp.index;
     this.id = gp.id || 'Mando';
-    console.log('ðŸŽ® Mando conectado:', this.id);
+    console.log('🎮 Mando conectado:', this.id, '· mapping:', gp.mapping || '(genérico)');
 
     if (window.UI && UI.toast) {
-      UI.toast(`ðŸŽ® ${this._shortName(this.id)} conectado`, 'gold');
+      UI.toast(`🎮 ${this._shortName(this.id)} conectado`, 'gold');
+      if (gp.mapping !== 'standard') {
+        setTimeout(() => UI.toast('🎮 Mando genérico: remapea sus botones en Opciones', 'danger'), 900);
+      }
     }
     this.rumble(0.3, 80);
 
-    if (window.UI && UI.updateKeyLabels) {
-      setTimeout(() => UI.updateKeyLabels(), 50);
+    if (window.UI) {
+      if (UI.updateKeyLabels) setTimeout(() => UI.updateKeyLabels(), 50);
+      if (UI.refreshGamepadSection) UI.refreshGamepadSection();
     }
   },
 
@@ -234,11 +282,12 @@ const Gamepad = {
       this.connected = false;
       this.index = -1;
       this.id = '';
-      console.log('ðŸŽ® Mando desconectado');
+      console.log('🎮 Mando desconectado');
       if (window.UI && UI.toast) {
-        UI.toast('ðŸŽ® Mando desconectado', 'danger');
+        UI.toast('🎮 Mando desconectado', 'danger');
       }
       if (window.UI && UI.updateKeyLabels) UI.updateKeyLabels();
+      if (window.UI && UI.refreshGamepadSection) UI.refreshGamepadSection();
     }
   },
 
@@ -364,36 +413,29 @@ const Gamepad = {
   },
 
   getButtonLabel(action) {
-    const brand = this._getBrand();
-    const map = {
-      xbox: { basic:'RT', basicAlt:'RB', melee:'X', long:'Y', dash:'B', dashAlt:'LB', block:'A', pause:'â˜°', inventory:'â§‰', confirm:'A', cancel:'B' },
-      ps:   { basic:'R2', basicAlt:'R1', melee:'â–¡', long:'â–³', dash:'â—‹', dashAlt:'L1', block:'âœ•', pause:'OPTIONS', inventory:'SHARE', confirm:'âœ•', cancel:'â—‹' },
-      switch:{ basic:'ZR', basicAlt:'R', melee:'Y', long:'X', dash:'A', dashAlt:'L', block:'B', pause:'+', inventory:'âˆ’', confirm:'B', cancel:'A' },
-      '8bitdo': { basic:'RT', basicAlt:'RB', melee:'X', long:'Y', dash:'B', dashAlt:'LB', block:'A', pause:'+', inventory:'âˆ’', confirm:'A', cancel:'B' },
-    };
-    return (map[brand] || map.xbox)[action] || '?';
+    return this.buttonName(this.MAPPING[action]);
   },
 
   getButtonIcon(action) {
     const brand = this._getBrand();
     const map = {
-      xbox: { basic:'ðŸŽ®', melee:'âŽ', long:'ðŸŸ¡', dash:'ðŸ…±ï¸', block:'ðŸ…°ï¸', pause:'â˜°', inventory:'â§‰', confirm:'ðŸ…°ï¸', cancel:'ðŸ…±ï¸' },
-      ps:   { basic:'ðŸŽ®', melee:'ðŸŸ¦', long:'ðŸ”º', dash:'ðŸ”´', block:'âœ–ï¸', pause:'â¸', inventory:'ðŸ“‹', confirm:'âœ–ï¸', cancel:'â­•' },
-      switch:{ basic:'ðŸŽ®', melee:'ðŸŸ¨', long:'ðŸŸ¦', dash:'ðŸ…°ï¸', block:'ðŸ…±ï¸', pause:'âž•', inventory:'âž–', confirm:'ðŸ…±ï¸', cancel:'ðŸ…°ï¸' },
-      '8bitdo': { basic:'ðŸŽ®', melee:'âŽ', long:'ðŸŸ¡', dash:'ðŸ…±ï¸', block:'ðŸ…°ï¸', pause:'âž•', inventory:'âž–', confirm:'ðŸ…°ï¸', cancel:'ðŸ…±ï¸' },
+      xbox: { basic:'🎮', melee:'❎', long:'🟡', dash:'🅱️', block:'🅰️', pause:'☰', inventory:'⧉', confirm:'🅰️', cancel:'🅱️' },
+      ps:   { basic:'🎮', melee:'🟦', long:'🔺', dash:'🔴', block:'✖️', pause:'⏸', inventory:'📋', confirm:'✖️', cancel:'⭕' },
+      switch:{ basic:'🎮', melee:'🟨', long:'🟦', dash:'🅰️', block:'🅱️', pause:'➕', inventory:'➖', confirm:'🅱️', cancel:'🅰️' },
+      '8bitdo': { basic:'🎮', melee:'❎', long:'🟡', dash:'🅱️', block:'🅰️', pause:'➕', inventory:'➖', confirm:'🅰️', cancel:'🅱️' },
     };
-    return (map[brand] || map.xbox)[action] || 'ðŸŽ®';
+    return (map[brand] || map.xbox)[action] || '🎮';
   },
 
   getBrandName() {
     const brand = this._getBrand();
     const names = {
-      xbox:   'ðŸŽ® Xbox',
-      ps:     'ðŸŽ® PlayStation',
-      switch: 'ðŸŽ® Switch',
-      '8bitdo': 'ðŸŽ® 8BitDo',
+      xbox:   '🎮 Xbox',
+      ps:     '🎮 PlayStation',
+      switch: '🎮 Switch',
+      '8bitdo': '🎮 8BitDo',
     };
-    return names[brand] || 'ðŸŽ® Mando';
+    return names[brand] || '🎮 Mando';
   },
 };
 

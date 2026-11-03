@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="css/levelup.css">
 </head>
 <body>
-<div id="app">
+<div id="app" class="overlay-open">
 
   <canvas id="game" width="960" height="640"></canvas>
 
@@ -33,30 +33,32 @@
       <div class="hud-text" id="p2HpText">100 / 100</div>
     </div>
 
-    <div class="ability-slot" id="abilitySlot" data-slot="dash" title="Dash">
-      <div class="ability-icon">💨</div>
-      <div class="ability-cooldown" id="dashCooldown"></div>
-      <div class="ability-key" id="dashKey">SHIFT</div>
-    </div>
-    <div class="ability-slot" id="basicSlot" data-slot="basic" title="Ataque básico">
-      <div class="ability-icon">❄️</div>
-      <div class="ability-cooldown" id="basicCooldown"></div>
-      <div class="ability-key" id="basicKey">Z</div>
-    </div>
-    <div class="ability-slot" id="meleeSlot" data-slot="melee" title="Melee">
-      <div class="ability-icon">🗡️</div>
-      <div class="ability-cooldown" id="meleeCooldown"></div>
-      <div class="ability-key" id="meleeKey">E</div>
-    </div>
-    <div class="ability-slot" id="longSlot" data-slot="long" title="Ráfaga pesada">
-      <div class="ability-icon">☄️</div>
-      <div class="ability-cooldown" id="longCooldown"></div>
-      <div class="ability-key" id="longKey">Q</div>
-    </div>
-    <div class="ability-slot" id="blockSlot" data-slot="block" title="Bloqueo">
-      <div class="ability-icon">🛡️</div>
-      <div class="ability-cooldown" id="blockCooldown"></div>
-      <div class="ability-key" id="blockKey">F</div>
+    <div id="abilityBar" class="ability-bar">
+      <div class="ability-slot" id="abilitySlot" data-slot="dash" title="Dash">
+        <div class="ability-icon">💨</div>
+        <div class="ability-cooldown" id="dashCooldown"></div>
+        <div class="ability-key" id="dashKey">SHIFT</div>
+      </div>
+      <div class="ability-slot" id="basicSlot" data-slot="basic" title="Ataque básico">
+        <div class="ability-icon">❄️</div>
+        <div class="ability-cooldown" id="basicCooldown"></div>
+        <div class="ability-key" id="basicKey">Z</div>
+      </div>
+      <div class="ability-slot" id="meleeSlot" data-slot="melee" title="Melee">
+        <div class="ability-icon">🗡️</div>
+        <div class="ability-cooldown" id="meleeCooldown"></div>
+        <div class="ability-key" id="meleeKey">E</div>
+      </div>
+      <div class="ability-slot" id="longSlot" data-slot="long" title="Ráfaga pesada">
+        <div class="ability-icon">☄️</div>
+        <div class="ability-cooldown" id="longCooldown"></div>
+        <div class="ability-key" id="longKey">Q</div>
+      </div>
+      <div class="ability-slot" id="blockSlot" data-slot="block" title="Bloqueo">
+        <div class="ability-icon">🛡️</div>
+        <div class="ability-cooldown" id="blockCooldown"></div>
+        <div class="ability-key" id="blockKey">F</div>
+      </div>
     </div>
 
     <div class="hud-element hud-top-center-position" id="hud-top-center">
@@ -108,18 +110,19 @@
       🔒 CÁMARA DEL JEFE BLOQUEADA — Limpia todas las salas primero
     </div>
 
-    <div id="touchControls" class="touch-controls" aria-label="Controles táctiles">
-      <div id="touchJoystick" class="touch-joystick" aria-label="Mover personaje">
-        <div id="touchJoystickKnob" class="touch-joystick-knob"></div>
-      </div>
-      <div class="touch-actions">
-        <button class="touch-action touch-action-dash" data-touch-action="dash" aria-label="Dash">💨</button>
-        <button class="touch-action touch-action-basic" data-touch-action="basic" aria-label="Ataque">❄️</button>
-        <button class="touch-action touch-action-melee" data-touch-action="melee" aria-label="Melee">🗡️</button>
-        <button class="touch-action touch-action-long" data-touch-action="long" aria-label="Ráfaga pesada">☄️</button>
-        <button class="touch-action touch-action-block" data-touch-action="block" aria-label="Bloquear">🛡️</button>
-        <button class="touch-action touch-action-interact" data-touch-action="interact" aria-label="Interactuar">E</button>
-      </div>
+  </div>
+
+  <div id="touchControls" class="touch-controls" aria-label="Controles táctiles">
+    <div id="touchJoystick" class="touch-joystick" aria-label="Mover personaje">
+      <div id="touchJoystickKnob" class="touch-joystick-knob"></div>
+    </div>
+    <div class="touch-actions">
+      <button class="touch-action touch-action-dash" data-touch-action="dash" aria-label="Dash">💨</button>
+      <button class="touch-action touch-action-basic" data-touch-action="basic" aria-label="Ataque">❄️</button>
+      <button class="touch-action touch-action-melee" data-touch-action="melee" aria-label="Melee">🗡️</button>
+      <button class="touch-action touch-action-long" data-touch-action="long" aria-label="Ráfaga pesada">☄️</button>
+      <button class="touch-action touch-action-block" data-touch-action="block" aria-label="Bloquear">🛡️</button>
+      <button class="touch-action touch-action-interact" data-touch-action="interact" aria-label="Interactuar">E</button>
     </div>
   </div>
 
@@ -216,11 +219,53 @@
     </div>
     <h3 class="sub-title">Rebinding de teclas</h3>
     <div id="keybindList" class="keybind-list"></div>
+    <h3 class="sub-title">Mando / Gamepad</h3>
+    <p class="pad-status" id="gamepadStatus">🔌 Mando no detectado. Conéctalo por USB/Bluetooth, pulsa un botón con la pestaña activa y, si no aparece, recarga la página.</p>
+    <div id="gamepadBindList" class="keybind-list"></div>
     <div class="options-footer">
       <button class="btn small" id="btn-reset-keys">↻ Restaurar teclas</button>
+      <button class="btn small" id="btn-reset-pad">🎮 Restaurar mando</button>
+      <button class="btn small" id="btn-hud-options">🎛 Personalizar HUD</button>
       <button class="btn gold" id="btn-download-apk">📱 Descargar APK</button>
       <button class="btn" id="btn-options-back">← Volver (B)</button>
       <button class="btn danger" id="btn-reset-save">🗑 Borrar progreso</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="screen-hud">
+    <h2 class="screen-title">🎛 PERSONALIZAR HUD</h2>
+    <p class="modal-hint">Ajusta el HUD para que no tape la acción dentro de las salas. Se guarda al instante.</p>
+    <div class="hud-preset-row">
+      <button class="btn small" type="button" data-hud-preset="full">🖥 Completo</button>
+      <button class="btn small" type="button" data-hud-preset="compact">🗜 Compacto</button>
+      <button class="btn small" type="button" data-hud-preset="immersive">🌫 Inmersivo</button>
+    </div>
+    <div class="options-panel">
+      <div class="option-row">
+        <label>Tamaño del HUD: <span id="hudScaleVal">100</span>%</label>
+        <input type="range" id="hudScale" min="60" max="120" step="5" value="100">
+      </div>
+      <div class="option-row">
+        <label>Opacidad: <span id="hudOpacityVal">100</span>%</label>
+        <input type="range" id="hudOpacity" min="30" max="100" step="5" value="100">
+      </div>
+      <div class="option-row">
+        <label>Auto-ocultar cuando no hay combate</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" type="button" data-hud-autohide="on">ON</button>
+          <button class="toggle-btn" type="button" data-hud-autohide="off">OFF</button>
+        </div>
+      </div>
+      <div class="option-row">
+        <label>Retardo: <span id="hudDelayVal">6</span> s</label>
+        <input type="range" id="hudDelay" min="2" max="12" step="1" value="6">
+      </div>
+    </div>
+    <h3 class="sub-title">Elementos visibles</h3>
+    <div id="hudElementToggles" class="hud-toggle-grid"></div>
+    <div class="options-footer">
+      <button class="btn small" id="btn-hud-reset">↻ Restaurar HUD</button>
+      <button class="btn" id="btn-hud-back">← Volver (B)</button>
     </div>
   </div>
 
@@ -292,6 +337,7 @@
     <h2 class="screen-title">PAUSA</h2>
     <button class="btn" id="btn-resume">▶ Continuar</button>
     <button class="btn" id="btn-options-pause">⚙ Opciones</button>
+    <button class="btn" id="btn-hud-pause">🎛 Personalizar HUD</button>
     <button class="btn danger" id="btn-abandon">✕ Abandonar Run</button>
   </div>
 

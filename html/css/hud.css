@@ -1,6 +1,41 @@
-﻿/* ===== hud.css ===== */
+/* ===== hud.css ===== */
 /* HUD */
-#hud { position:absolute; inset:0; pointer-events:none; z-index:10; }
+#hud {
+  position:absolute; inset:0; pointer-events:none; z-index:10;
+  --hud-scale: 1;
+  --hud-opacity: 1;
+  --hud-dim: 1;
+  opacity: calc(var(--hud-opacity) * var(--hud-dim));
+  transition: opacity 0.4s ease;
+}
+#hud.is-dim { --hud-dim: 0.12; }
+#app.overlay-open #hud { opacity: 0; pointer-events: none; }
+
+/* Escalado del HUD sin mover sus anclajes */
+#hud .hud-element { transform: scale(var(--hud-scale)); }
+#hud .hud-top-center-position { transform: translateX(-50%) scale(var(--hud-scale)); }
+#hud .consumable-bar { transform: translateX(-50%) scale(var(--hud-scale)); }
+#hud .ability-slot { transform: scale(var(--hud-scale)); }
+#hud .minimap { transform: scale(var(--hud-scale)); }
+
+.hud-hp-position, .hud-p2-position { transform-origin: top left; }
+.hud-rooms-position, .hud-coins-position { transform-origin: top right; }
+.hud-xp-position { transform-origin: bottom left; }
+.hud-stats-position { transform-origin: top right; }
+.hud-top-center-position { transform-origin: top center; }
+.ability-slot { transform-origin: center; }
+.minimap { transform-origin: top right; }
+.consumable-bar { transform-origin: bottom center; }
+
+/* Elementos ocultables desde "Personalizar HUD" */
+#hud.hud-hide-hp .hud-hp-position,
+#hud.hud-hide-abilities .ability-bar,
+#hud.hud-hide-floor .hud-top-center-position,
+#hud.hud-hide-rooms .hud-rooms-position,
+#hud.hud-hide-coins .hud-coins-position,
+#hud.hud-hide-stats .hud-stats-position,
+#hud.hud-hide-xp .hud-xp-position,
+#hud.hud-hide-consumables .consumable-bar { display: none !important; }
 .hud-element {
   position:absolute;
   background: rgba(4,13,26,0.85);
@@ -19,7 +54,7 @@
 .hud-top-center-position { top:16px; left:50%; transform:translateX(-50%); }
 .hud-rooms-position { top:16px; right:16px; }
 .hud-coins-position { top:100px; right:16px; }
-.hud-stats-position { bottom:16px; left:50%; transform:translateX(-50%); }
+.hud-stats-position { top:160px; right:16px; bottom:auto; left:auto; }
 .hud-xp-position { bottom:16px; left:16px; min-width:200px; }
 .meta-coins-label { color:var(--ice-gold); }
 .modal-hint { color:var(--ice-frost); font-size:11px; margin-bottom:12px; }
@@ -106,10 +141,18 @@
 }
 
 /* Slots de habilidad */
-.ability-slot {
+.ability-bar {
   position: absolute;
-  top: 16px;
-  width: 68px; height: 68px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: none;
+}
+.ability-slot {
+  position: relative;
+  width: 56px; height: 56px;
   border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, rgba(0,229,255,0.2), rgba(4,13,26,0.95));
   border: 2px solid var(--ice-cyan);
@@ -118,11 +161,7 @@
   pointer-events: auto;
   transition: all 0.2s;
 }
-.ability-slot[data-slot="dash"]  { left: 180px; }
-.ability-slot[data-slot="basic"] { left: 258px; }
-.ability-slot[data-slot="melee"] { left: 336px; }
-.ability-slot[data-slot="long"]  { left: 414px; }
-.ability-slot[data-slot="block"] { left: 492px; border-color:#7dffff; }
+.ability-slot[data-slot="block"] { border-color:#7dffff; }
 .ability-slot.ready { animation: abilityPulse 1.5s ease-in-out infinite; }
 @keyframes abilityPulse {
   0%, 100% { box-shadow: 0 0 20px rgba(0,229,255,0.4), inset 0 0 15px rgba(0,229,255,0.15); }
@@ -243,7 +282,16 @@
   .hud-p2-position { top: max(8px, env(safe-area-inset-top)); left: 8px; margin-top: 58px; width: 116px; }
   .hud-rooms-position { top: max(8px, env(safe-area-inset-top)); right: 8px; }
   .hud-coins-position { top: 58px; right: 8px; }
-  .hud-stats-position { bottom: calc(var(--touch-dock-height) + 8px); font-size: 10px; }
+  .hud-stats-position {
+    top: auto; right: auto; left: 50%;
+    bottom: calc(var(--touch-dock-height) + 66px);
+    font-size: 10px;
+  }
+  #hud .hud-stats-position {
+    transform: translateX(-50%) scale(var(--hud-scale));
+    transform-origin: bottom center;
+  }
+  #hud .consumable-bar { bottom: calc(var(--touch-dock-height) + 112px); }
   .hud-xp-position { bottom: calc(var(--touch-dock-height) + 8px); left: 8px; width: 124px; min-width: 0; }
   .hud-label { font-size: 8px; letter-spacing: 1px; }
   .hud-value { font-size: 12px; }
@@ -253,7 +301,7 @@
   .challenge-badge { max-width: 42vw; padding: 4px 6px; gap: 4px; }
   .challenge-icon { font-size: 14px; }
   .challenge-text { font-size: 8px; letter-spacing: .5px; }
-  .ability-slot { display: none; }
+  .ability-bar { display: none; }
   .minimap { width: 92px; height: 92px; right: 8px !important; top: 112px !important; bottom: auto !important; }
   .boss-lock-msg { width: 82vw; padding: 10px 12px; font-size: 10px; text-align: center; letter-spacing: 1px; }
 }
@@ -264,9 +312,18 @@
   .hud-top-center-position { top: max(8px, env(safe-area-inset-top)); left: 50%; }
   .hud-rooms-position { top: max(8px, env(safe-area-inset-top)); right: calc(var(--touch-dock-width) + 8px); }
   .hud-coins-position { top: 58px; right: calc(var(--touch-dock-width) + 8px); }
-  .hud-stats-position { bottom: 8px; left: calc((100vw - var(--touch-dock-width)) / 2); }
+  .hud-stats-position {
+    top: auto; right: auto;
+    bottom: 8px;
+    left: calc((100vw - var(--touch-dock-width)) / 2);
+  }
+  #hud .hud-stats-position {
+    transform: translateX(-50%) scale(var(--hud-scale));
+    transform-origin: bottom center;
+  }
   .hud-xp-position { bottom: 8px; left: 8px; width: 124px; min-width: 0; }
-  .ability-slot { display: none; }
+  .ability-bar { display: none; }
+  #hud .consumable-bar { bottom: 80px; }
   .minimap { width: 86px; height: 86px; top: 8px; right: calc(var(--touch-dock-width) + 8px); }
   .boss-lock-msg { left: calc((100vw - var(--touch-dock-width)) / 2); width: min(70vw, 360px); }
 }
@@ -274,7 +331,7 @@
 /* Minimapa */
 .minimap {
   position: absolute;
-  top: 200px; right: 16px;
+  top: 222px; right: 16px;
   background: rgba(4,13,26,0.85);
   border: 1px solid #00e5ff;
   border-radius: 8px;

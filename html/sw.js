@@ -1,10 +1,20 @@
-const CACHE_NAME = 'los-magos-del-tiempo-v2';
+const CACHE_NAME = 'ice-run-v16';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './css/style.css',
-  './js/main.js',
+  './css/base.css',
+  './css/hud.css',
+  './css/screens.css',
+  './css/components.css',
+  './css/levelup.css',
+  './js/config.js',
+  './js/utils.js',
+  './js/customization.js',
+  './js/audio-input.js',
+  './js/entities.js',
+  './js/game.js',
+  './js/ui.js',
   './player.customize/personaje.1.png',
   './player.customize/personaje.2.png',
   './player.customize/personaje.3.png',
@@ -22,7 +32,12 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  // Si un archivo falta, no debe tumbar todo el modo offline.
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(APP_SHELL.map(url => cache.add(url).catch(() => null)))
+    )
+  );
   self.skipWaiting();
 });
 
@@ -37,6 +52,22 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
+  // Navegación: red primero, para no quedarse con un index.html viejo.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
+          return response;
+        })
+        .catch(() => caches.match(event.request).then(r => r || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Resto de recursos: caché primero.
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request))
   );

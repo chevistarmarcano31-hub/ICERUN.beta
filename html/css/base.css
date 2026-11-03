@@ -1,4 +1,4 @@
-﻿
+
 /* ===== base.css ===== */
 /* ============================================================
    ICE RUN - Estilos glaciales v6
@@ -28,10 +28,9 @@ body {
 }
 #app {
   position: relative;
-  width: min(96vw, 960px);
-  height: min(64vw, 640px);
+  width: min(96vw, calc((100vh - 24px) * 1.5), 960px);
+  width: min(96vw, calc((100dvh - 24px) * 1.5), 960px);
   max-width: 960px;
-  max-height: 640px;
   aspect-ratio: 3 / 2;
   margin: 0 auto;
   border: 2px solid var(--ice-cyan);
@@ -51,13 +50,15 @@ canvas#game {
 }
 .touch-controls {
   display: none;
+  transition: opacity 0.2s ease;
 }
+#app.overlay-open #touchControls { opacity: 0; pointer-events: none; }
 @media (pointer: coarse), (max-width: 760px) {
   .touch-controls {
     display: flex;
     position: absolute;
     inset: auto 18px 18px;
-    z-index: 30;
+    z-index: 40;
     align-items: flex-end;
     justify-content: space-between;
     pointer-events: none;
@@ -136,11 +137,10 @@ canvas#game {
     z-index: 0;
     top: calc((100% - var(--touch-dock-height)) / 2);
     left: 50%;
-    width: min(100vw, calc(100dvh - var(--touch-dock-height)));
-    height: min(100vw, calc(100dvh - var(--touch-dock-height)));
+    width: min(100vw, calc((100dvh - var(--touch-dock-height)) * 1.5));
+    height: auto;
+    aspect-ratio: 3 / 2;
     transform: translate(-50%, -50%);
-    object-fit: contain;
-    object-position: center;
   }
   .touch-controls {
     position: absolute;
@@ -183,25 +183,24 @@ canvas#game {
     max-height: none;
     border-width: 0;
     border-radius: 0;
-    --touch-dock-width: clamp(184px, 25vw, 250px);
+    --touch-dock-width: clamp(168px, 24vw, 236px);
   }
   canvas#game {
     position: absolute;
     z-index: 0;
     top: 50%;
-    left: 0;
-    width: min(calc(100dvh - 4px), calc(100vw - var(--touch-dock-width)));
-    height: min(calc(100dvh - 4px), calc(100vw - var(--touch-dock-width)));
-    transform: translateY(-50%);
-    object-fit: contain;
-    object-position: center;
+    left: calc((100vw - var(--touch-dock-width)) / 2);
+    width: min(calc(100vw - var(--touch-dock-width)), calc((100dvh - 6px) * 1.5));
+    height: auto;
+    aspect-ratio: 3 / 2;
+    transform: translate(-50%, -50%);
   }
   .touch-controls {
     position: absolute;
     inset: 0 0 0 auto;
     width: var(--touch-dock-width);
     min-height: 0;
-    padding: 10px 8px max(10px, env(safe-area-inset-bottom));
+    padding: 10px max(8px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) 8px;
     flex-direction: column;
     justify-content: center;
     align-items: center;

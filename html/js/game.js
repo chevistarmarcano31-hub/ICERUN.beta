@@ -1,5 +1,7 @@
-﻿const Game = {
+const Game = {
   canvas: null, ctx: null, minimap: null, minimapCtx: null,
+  backgroundCanvas: null,
+  minimapNextRender: 0,
   player: null,
   players: [],
   coop: false,
@@ -17,17 +19,60 @@
   survivalNextHordeAt: 0,
   bossUnlocked: false,
   run: null,
-  floorChallenge: null, // ðŸ—ºï¸ Reto activo del piso
+  floorChallenge: null, // 🗺️ Reto activo del piso
+  lastCombatAt: 0,
+
+  // Marca actividad de combate: mantiene el HUD visible y reinicia el auto-ocultado.
+  markCombat() {
+    this.lastCombatAt = performance.now();
+  },
 
   init() {
     this.canvas = document.getElementById('game');
     this.ctx = this.canvas.getContext('2d');
     this.minimap = document.getElementById('minimap');
     this.minimapCtx = this.minimap.getContext('2d');
+    this._buildBackground();
     Input.init();
     this._installMouseTracking();
     this.lastTime = performance.now();
     requestAnimationFrame(t => this.loop(t));
+  },
+
+  _buildBackground() {
+    this.backgroundCanvas = document.createElement('canvas');
+    this.backgroundCanvas.width = CFG.W;
+    this.backgroundCanvas.height = CFG.H;
+    const ctx = this.backgroundCanvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = '#040d1a';
+    ctx.fillRect(0, 0, CFG.W, CFG.H);
+    const grad = ctx.createRadialGradient(CFG.W / 2, CFG.H / 2, 100, CFG.W / 2, CFG.H / 2, 600);
+    grad.addColorStop(0, '#0a2846');
+    grad.addColorStop(1, '#040d1a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(CFG.WALL, CFG.WALL, CFG.W - CFG.WALL * 2, CFG.H - CFG.WALL * 2);
+
+    ctx.strokeStyle = 'rgba(0,229,255,0.05)';
+    for (let x = CFG.WALL; x < CFG.W - CFG.WALL; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, CFG.WALL);
+      ctx.lineTo(x, CFG.H - CFG.WALL);
+      ctx.stroke();
+    }
+    for (let y = CFG.WALL; y < CFG.H - CFG.WALL; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(CFG.WALL, y);
+      ctx.lineTo(CFG.W - CFG.WALL, y);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = '#071a2e';
+    ctx.fillRect(0, 0, CFG.W, CFG.WALL);
+    ctx.fillRect(0, CFG.H - CFG.WALL, CFG.W, CFG.WALL);
+    ctx.fillRect(0, 0, CFG.WALL, CFG.H);
+    ctx.fillRect(CFG.W - CFG.WALL, 0, CFG.WALL, CFG.H);
   },
 
   _installMouseTracking() {
@@ -112,6 +157,7 @@
     this.running = true;
     this.battleActive = true;
     this.paused = false;
+    this.markCombat();
     save.totalRuns++;
     Save.write();
     UI.show('battle');
@@ -120,7 +166,7 @@
     UI.updateXpBar();
     UI.updateChallengeBadge();
     UI.checkAchievements();
-    UI.toast(this.survivalMode ? 'âš” Modo Supervivencia iniciado' : endless ? 'âˆž Endless iniciado' : 'â„ Piso 1 iniciado', 'gold');
+    UI.toast(this.survivalMode ? '⚔ Modo Supervivencia iniciado' : endless ? '∞ Endless iniciado' : '❄ Piso 1 iniciado', 'gold');
     Gamepad.rumble(0.4, 120);
 
     // Toast del reto
@@ -169,17 +215,17 @@
     }
     this.enemies = r.enemies.slice();
     this.projectiles = [];
-    UI.toast(`âš” Horda ${this.survivalHorde} Â· ${count} enemigos`, 'danger');
+    UI.toast(`⚔ Horda ${this.survivalHorde} · ${count} enemigos`, 'danger');
   },
 
-  /* ðŸ—ºï¸ Elige un reto aleatorio para el piso actual */
+  /* 🗺️ Elige un reto aleatorio para el piso actual */
   _rollFloorChallenge() {
     // No repetir el mismo reto que el piso anterior
     const previousId = this.floorChallenge ? this.floorChallenge.id : null;
     let pool = FLOOR_CHALLENGES.filter(c => c.id !== previousId);
     if (pool.length === 0) pool = FLOOR_CHALLENGES;
     this.floorChallenge = Util.pick(pool);
-    console.log(`ðŸ—ºï¸ Reto del piso ${this.floor}:`, this.floorChallenge.name);
+    console.log(`🗺️ Reto del piso ${this.floor}:`, this.floorChallenge.name);
   },
 
   buildStats() {
@@ -347,7 +393,7 @@
     if (r.type === 'boss' && !r.boss) {
       r.boss = new Boss(this.floor);
       this.boss = r.boss;
-      UI.toast('âš” Â¡JEFE!', 'danger');
+      UI.toast('⚔ ¡JEFE!', 'danger');
       Gamepad.rumble(0.8, 250);
     } else if (r.type === 'boss') {
       this.boss = r.boss;
@@ -367,13 +413,14 @@
       if (!r.challengeRewarded) {
         r.challengeRewarded = true;
         this.run.coins += r.challenge.rewardCoins || 0;
-        UI.toast(`${r.challenge.icon} CÃ¡mara superada: +${r.challenge.rewardCoins || 0} monedas`, 'gold');
+        UI.toast(`${r.challenge.icon} Cámara superada: +${r.challenge.rewardCoins || 0} monedas`, 'gold');
       }
       this.checkBossUnlock();
     }
     if (r.type === 'challenge' && r.challenge && firstVisit) {
       UI.toast(`${r.challenge.icon} ${r.challenge.name}: ${r.challenge.desc}`, 'challenge');
     }
+    this.markCombat();
     UI.updateHud();
   },
 
@@ -391,14 +438,14 @@
     }
     if (allCleared && !this.bossUnlocked) {
       this.bossUnlocked = true;
-      UI.toast('ðŸ”“ Â¡La cÃ¡mara del JEFE se ha desbloqueado!', 'gold');
+      UI.toast('🔓 ¡La cámara del JEFE se ha desbloqueado!', 'gold');
       Gamepad.rumble(0.6, 200);
     }
   },
 
   grantXp(amount) {
     const r = this.run;
-    // ðŸ”¥ XP reducida en pisos altos para hacer el farmeo mÃ¡s duro
+    // 🔥 XP reducida en pisos altos para hacer el farmeo más duro
     const floorDecay = Math.max(0.4, 1 - (this.floor - 1) * 0.06);
     const finalAmount = Math.max(1, Math.round(amount * floorDecay));
     r.xp += finalAmount;
@@ -417,9 +464,9 @@
   _levelUp() {
     const r = this.run;
     r.level++;
-    // ðŸ”¥ Curva mÃ¡s agresiva: 20 Ã— 1.45^(nivel-1)
+    // 🔥 Curva más agresiva: 20 × 1.45^(nivel-1)
     r.xpToNext = Math.round((this.coop ? 28 : 20) * Math.pow(1.45, r.level - 1));
-    UI.toast(`â­ Â¡NIVEL ${r.level}!`, 'gold');
+    UI.toast(`⭐ ¡NIVEL ${r.level}!`, 'gold');
     Audio2.levelUp();
     Gamepad.rumble(0.6, 180);
     this.paused = true;
@@ -487,7 +534,7 @@
     this.paused = false;
     UI.updateHud();
     UI.updateXpBar();
-    UI.toast(`â­ ${perk.name}`, 'gold');
+    UI.toast(`⭐ ${perk.name}`, 'gold');
   },
 
   projHitsObstacle(proj) {
@@ -550,7 +597,7 @@
       this.spawnParticles(cx, cy, '#ffd54f', 12);
       this.damageNumbers.push({
         x: cx, y: cy - 10,
-        value: `â—† +${coins}`,
+        value: `◆ +${coins}`,
         crit: true,
         life: 1100, maxLife: 1100,
         color: '#ffd54f',
@@ -558,7 +605,7 @@
       Audio2.explosion();
       Audio2.beep(1200, 0.08, 0.1);
       Gamepad.rumble(0.5, 130);
-      UI.toast(`â—† +${coins} monedas`, 'gold');
+      UI.toast(`◆ +${coins} monedas`, 'gold');
       UI.updateHud();
       UI.checkAchievements();
     }
@@ -679,7 +726,7 @@
   },
 
   onPlayerDown(player) {
-    UI.toast(`${player.controlId === 'p2' ? 'P2' : 'P1'} ha caÃ­do â€” acÃ©rcate y pulsa E/9 para revivir`, 'danger');
+    UI.toast(`${player.controlId === 'p2' ? 'P2' : 'P1'} ha caído — acércate y pulsa E/9 para revivir`, 'danger');
     if (this.activePlayers().every(p => p.downed)) this.gameOver();
     UI.updateHud();
   },
@@ -774,7 +821,7 @@
       this.rebuildPlayers(true);
       this.paused = false;
       UI.updateHud();
-      UI.toast(`ðŸ“¦ ${item.name}`, 'gold');
+      UI.toast(`📦 ${item.name}`, 'gold');
       Gamepad.rumble(0.5, 150);
       UI.checkAchievements();
       this.checkBossUnlock();
@@ -846,11 +893,12 @@
     if (!def) return false;
     const p = owner;
     if (!p) return false;
+    this.markCombat();
 
-    // Reto del piso: bloqueo de curaciÃ³n
+    // Reto del piso: bloqueo de curación
     const blockHeal = Game.floorChallenge?.apply?.blockHeal;
     if (def.effect === 'heal' && blockHeal) {
-      UI.toast('ðŸš« CuraciÃ³n bloqueada por el reto del piso', 'danger');
+      UI.toast('🚫 Curación bloqueada por el reto del piso', 'danger');
       return false;
     }
 
@@ -858,10 +906,10 @@
     switch (def.effect) {
       case 'heal': {
         const healed = Math.min(def.value, p.maxHp - p.hp);
-        if (healed <= 0) { UI.toast('â¤ Vida ya al mÃ¡ximo', 'danger'); return false; }
+        if (healed <= 0) { UI.toast('❤ Vida ya al máximo', 'danger'); return false; }
         p.hp = Math.min(p.maxHp, p.hp + def.value);
         this.damageNumbers.push({ x:p.x, y:p.y - 20, value:'+'+Math.round(healed), crit:false, life:900, maxLife:900, color:'#7bff9f' });
-        UI.toast(`ðŸ§ª +${Math.round(healed)} HP`, 'gold');
+        UI.toast(`🧪 +${Math.round(healed)} HP`, 'gold');
         Audio2.consume();
         break;
       }
@@ -887,29 +935,29 @@
             if (d < def.radius + Math.max(o.w,o.h)/2) this.damageObstacle(o, def.value);
           }
         }
-        UI.toast('ðŸ’£ Â¡ExplosiÃ³n!', 'gold');
+        UI.toast('💣 ¡Explosión!', 'gold');
         break;
       }
       case 'shield': {
         if (Game.floorChallenge?.apply?.blockShield) {
-          UI.toast('ðŸš« Escudos bloqueados por el reto del piso', 'danger');
+          UI.toast('🚫 Escudos bloqueados por el reto del piso', 'danger');
           return false;
         }
         p.shieldUntil = now + def.value;
-        UI.toast('ðŸ›¡ Escudo activo', 'gold');
+        UI.toast('🛡 Escudo activo', 'gold');
         Audio2.consume();
         break;
       }
       case 'rage': {
         p.rageUntil = now + def.value;
-        UI.toast('ðŸ”¥ Furia desatada', 'epic');
+        UI.toast('🔥 Furia desatada', 'epic');
         Audio2.consume();
         break;
       }
       case 'timeslow': {
         for (const e of this.enemies) e.slowUntil = Math.max(e.slowUntil, now + def.value);
         if (this.boss) this.boss.slowUntil = Math.max(this.boss.slowUntil, now + def.value);
-        UI.toast('â³ Tiempo ralentizado', 'epic');
+        UI.toast('⏳ Tiempo ralentizado', 'epic');
         Audio2.consume();
         break;
       }
@@ -920,7 +968,7 @@
         this.spawnParticles(p.x, p.y, '#7b61ff', 16);
         p.x = tx; p.y = ty;
         this.spawnParticles(p.x, p.y, '#7b61ff', 16);
-        UI.toast('ðŸ“œ Blink', 'gold');
+        UI.toast('📜 Blink', 'gold');
         Audio2.consume();
         break;
       }
@@ -928,7 +976,7 @@
         const bonus = 8 + this.floor * 2;
         const goldMul = (Game.floorChallenge?.apply?.goldMul) || 1;
         this.run.coins += Math.round(bonus * goldMul);
-        UI.toast(`ðŸ§² +${Math.round(bonus * goldMul)} monedas atraÃ­das`, 'gold');
+        UI.toast(`🧲 +${Math.round(bonus * goldMul)} monedas atraídas`, 'gold');
         Audio2.consume();
         UI.updateHud();
         break;
@@ -971,9 +1019,6 @@
 
     if (Gamepad.connected) {
       UI.handleGamepadMenuNav();
-    }
-
-    if (Gamepad.connected) {
       Gamepad.updateButtons();
       Gamepad.updateButtonsUI();
     }
@@ -997,7 +1042,7 @@
           for (const p of this.activePlayers()) {
             p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.2));
           }
-          UI.toast('ðŸ›’ Descanso: tienda abierta durante 18 s', 'gold');
+          UI.toast('🛒 Descanso: tienda abierta durante 18 s', 'gold');
           UI.updateHud();
         } else if (this.survivalNextHordeAt === 0) {
           this.survivalNextHordeAt = now + 1800;
@@ -1114,12 +1159,12 @@
           }
         }
         this.run.roomsCleared++;
-        UI.toast('âœ“ Sala limpia â€” Puertas abiertas', 'gold');
+        UI.toast('✓ Sala limpia — Puertas abiertas', 'gold');
         if (this.currentRoom.type === 'challenge' && !this.currentRoom.challengeRewarded) {
           this.currentRoom.challengeRewarded = true;
           const reward = this.currentRoom.challenge ? this.currentRoom.challenge.rewardCoins : 0;
           this.run.coins += reward || 0;
-          UI.toast(`${this.currentRoom.challenge.icon} Recompensa de cÃ¡mara: +${reward || 0} monedas`, 'gold');
+          UI.toast(`${this.currentRoom.challenge.icon} Recompensa de cámara: +${reward || 0} monedas`, 'gold');
         }
         UI.updateHud();
         this.checkBossUnlock();
@@ -1264,7 +1309,7 @@
     ctx.fillStyle = '#ffd54f';
     ctx.shadowColor = '#ffd54f';
     ctx.shadowBlur = 18;
-    ctx.fillText('ðŸª MERCADILLO GLACIAL', CFG.W/2, 40);
+    ctx.fillText('🏪 MERCADILLO GLACIAL', CFG.W/2, 40);
     ctx.font = 'bold 11px monospace';
     ctx.fillStyle = '#b2ebf2';
     ctx.shadowBlur = 6;
@@ -1328,15 +1373,15 @@
       if (opened) {
         ctx.font = '20px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('âœ¨', 0, -30);
+        ctx.fillText('✨', 0, -30);
       } else if (locked) {
         ctx.font = '20px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('ðŸ”’', 0, -30);
+        ctx.fillText('🔒', 0, -30);
       } else {
         ctx.font = '20px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('â“', 0, -30);
+        ctx.fillText('❓', 0, -30);
       }
 
       ctx.restore();
@@ -1371,11 +1416,11 @@
     ctx.fillStyle = '#b48aff';
     ctx.shadowColor = '#b48aff';
     ctx.shadowBlur = 18;
-    ctx.fillText('ðŸ“¦ SALA DE COFRES', CFG.W/2, 40);
+    ctx.fillText('📦 SALA DE COFRES', CFG.W/2, 40);
     ctx.font = 'bold 11px monospace';
     ctx.fillStyle = '#b2ebf2';
     ctx.shadowBlur = 6;
-    ctx.fillText('Elige sabiamente â€” solo puedes abrir UNO', CFG.W/2, 62);
+    ctx.fillText('Elige sabiamente — solo puedes abrir UNO', CFG.W/2, 62);
     ctx.restore();
   },
 
@@ -1448,13 +1493,13 @@
     ctx.fillStyle = '#7b61ff';
     ctx.shadowColor = '#7b61ff';
     ctx.shadowBlur = 15;
-    ctx.fillText('ðŸŽ° GACHA', m.x, m.y + 42);
+    ctx.fillText('🎰 GACHA', m.x, m.y + 42);
     ctx.shadowBlur = 0;
 
     const baseCost = 50 + Game.floor * 12;
     ctx.font = 'bold 10px monospace';
     ctx.fillStyle = '#ffd54f';
-    ctx.fillText(`â—† ${baseCost} por tirada`, m.x, m.y + 58);
+    ctx.fillText(`◆ ${baseCost} por tirada`, m.x, m.y + 58);
 
     if (p) {
       const d = Math.hypot(p.x - m.x, p.y - m.y);
@@ -1480,40 +1525,23 @@
     ctx.fillStyle = '#7b61ff';
     ctx.shadowColor = '#7b61ff';
     ctx.shadowBlur = 18;
-    ctx.fillText('ðŸŽ° CÃMARA GACHA', CFG.W/2, 40);
+    ctx.fillText('🎰 CÁMARA GACHA', CFG.W/2, 40);
     ctx.font = 'bold 11px monospace';
     ctx.fillStyle = '#b2ebf2';
     ctx.shadowBlur = 6;
-    ctx.fillText(`Pity: ${r.gachaPity || 0}/10 â€” Ã©pico garantizado al llegar a 10`, CFG.W/2, 62);
+    ctx.fillText(`Pity: ${r.gachaPity || 0}/10 — épico garantizado al llegar a 10`, CFG.W/2, 62);
     ctx.restore();
   },
 
   render(now) {
     if (!this.ctx) return;
     const ctx = this.ctx;
-    ctx.fillStyle = '#040d1a';
-    ctx.fillRect(0, 0, CFG.W, CFG.H);
+    if (this.backgroundCanvas) ctx.drawImage(this.backgroundCanvas, 0, 0);
+    else {
+      ctx.fillStyle = '#040d1a';
+      ctx.fillRect(0, 0, CFG.W, CFG.H);
+    }
     if (!this.currentRoom) return;
-
-    const grad = ctx.createRadialGradient(CFG.W/2, CFG.H/2, 100, CFG.W/2, CFG.H/2, 600);
-    grad.addColorStop(0, '#0a2846');
-    grad.addColorStop(1, '#040d1a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(CFG.WALL, CFG.WALL, CFG.W - CFG.WALL*2, CFG.H - CFG.WALL*2);
-
-    ctx.strokeStyle = 'rgba(0,229,255,0.05)';
-    for (let x = CFG.WALL; x < CFG.W - CFG.WALL; x += 40) {
-      ctx.beginPath(); ctx.moveTo(x, CFG.WALL); ctx.lineTo(x, CFG.H - CFG.WALL); ctx.stroke();
-    }
-    for (let y = CFG.WALL; y < CFG.H - CFG.WALL; y += 40) {
-      ctx.beginPath(); ctx.moveTo(CFG.WALL, y); ctx.lineTo(CFG.W - CFG.WALL, y); ctx.stroke();
-    }
-
-    ctx.fillStyle = '#071a2e';
-    ctx.fillRect(0, 0, CFG.W, CFG.WALL);
-    ctx.fillRect(0, CFG.H - CFG.WALL, CFG.W, CFG.WALL);
-    ctx.fillRect(0, 0, CFG.WALL, CFG.H);
-    ctx.fillRect(CFG.W - CFG.WALL, 0, CFG.WALL, CFG.H);
 
     const r = this.currentRoom;
     const doorColor = r.cleared ? '#00e5ff' : '#7a2030';
@@ -1541,7 +1569,7 @@
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           const cx = r.neighbors.up === n || r.neighbors.down === n ? CFG.W/2 : (r.neighbors.left === n ? CFG.WALL/2 : CFG.W - CFG.WALL/2);
           const cy = r.neighbors.left === n || r.neighbors.right === n ? CFG.H/2 : (r.neighbors.up === n ? CFG.WALL/2 : CFG.H - CFG.WALL/2);
-          ctx.fillText('ðŸ”’', cx, cy);
+          ctx.fillText('🔒', cx, cy);
         }
       }
     }
@@ -1549,13 +1577,13 @@
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.font = 'bold 18px monospace';
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    if (r.type === 'boss')    ctx.fillText('âš” JEFE', 40, 40);
+    if (r.type === 'boss')    ctx.fillText('⚔ JEFE', 40, 40);
     if (this.survivalMode) {
       ctx.fillStyle = '#ffd54f';
-      ctx.fillText(`âš” SUPERVIVENCIA Â· HORDA ${this.survivalHorde}`, 40, 40);
+      ctx.fillText(`⚔ SUPERVIVENCIA · HORDA ${this.survivalHorde}`, 40, 40);
       if (this.survivalBreak) {
         ctx.fillStyle = '#7bff9f';
-        ctx.fillText(`DESCANSO Â· ${Math.max(0, Math.ceil((this.survivalBreakUntil - now) / 1000))} s`, 40, 62);
+        ctx.fillText(`DESCANSO · ${Math.max(0, Math.ceil((this.survivalBreakUntil - now) / 1000))} s`, 40, 62);
       }
     }
     if (r.type === 'challenge' && r.challenge) {
@@ -1592,7 +1620,7 @@
       ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const icon = o.kind === 'rock' ? 'ðŸª¨' : o.kind === 'ice_block' ? 'ðŸ§Š' : 'ðŸ’Ž';
+      const icon = o.kind === 'rock' ? '🪨' : o.kind === 'ice_block' ? '🧊' : '💎';
       ctx.fillText(icon, o.x + o.w / 2, o.y + o.h / 2);
       if (o.hitFlash > 0) o.hitFlash--;
     }
@@ -1637,7 +1665,10 @@
     }
     ctx.globalAlpha = 1;
 
-    if (save.options.minimap) this.renderMinimap();
+    if (save.options.minimap && now >= this.minimapNextRender) {
+      this.renderMinimap();
+      this.minimapNextRender = now + 100;
+    }
   },
 
   renderMinimap() {
@@ -1713,14 +1744,15 @@
     this.run.roomsCleared = 0;
     this.boss = null;
     this.bossUnlocked = false;
+    this.markCombat();
 
-    // ðŸ—ºï¸ Nuevo reto por piso
+    // 🗺️ Nuevo reto por piso
     this._rollFloorChallenge();
 
     this.rebuildPlayers(true);
     for (const p of this.activePlayers()) p.downed = false;
     this.generateFloor();
-    UI.toast(`â„ Piso ${this.floor}`, 'gold');
+    UI.toast(`❄ Piso ${this.floor}`, 'gold');
     UI.updateHud();
     UI.updateConsumableBar();
     UI.updateXpBar();

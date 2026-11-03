@@ -1,4 +1,4 @@
-﻿/* ===== screens.css ===== */
+/* ===== screens.css ===== */
 /* Overlays */
 .overlay {
   position:absolute; inset:0;
@@ -190,6 +190,16 @@
   background: rgba(255,213,79,0.15);
   animation: focus-glow-gold 1.4s ease-in-out infinite;
 }
+.pad-status {
+  font-size:11px; letter-spacing:1px;
+  color: var(--ice-frost);
+  margin:0 0 10px; padding:8px 12px;
+  border:1px dashed rgba(0,229,255,0.35);
+  border-radius:6px; background: rgba(4,13,26,0.7);
+  max-width:720px; width:100%; text-align:center;
+}
+.pad-status.online  { color:#7bff9f; border-color: rgba(123,255,159,0.55); }
+.pad-status.offline { color:#ff8aa3; border-color: rgba(255,61,113,0.55); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
 
 /* Stats */
@@ -440,5 +450,63 @@
   font-size: 13px;
   padding: 12px 22px;
   box-shadow: 0 0 30px rgba(255,213,79,0.6);
+}
+
+/* Personalizar HUD */
+.hud-preset-row {
+  display:flex; gap:10px; flex-wrap:wrap;
+  justify-content:center; margin-bottom:14px;
+}
+.hud-preset-row .btn { margin:0; }
+.hud-toggle-grid {
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:8px;
+  max-width:680px; width:100%;
+  margin-bottom:18px;
+}
+.hud-chip {
+  display:flex; align-items:center; gap:8px;
+  padding:10px 12px;
+  background: rgba(4,13,26,0.7);
+  border:1px solid rgba(0,229,255,0.3);
+  border-radius:6px;
+  color: var(--ice-frost);
+  font-family:inherit; font-size:11px; letter-spacing:1px;
+  cursor:pointer; text-align:left;
+  transition: all 0.2s ease;
+}
+.hud-chip .hud-chip-dot {
+  width:10px; height:10px; border-radius:50%;
+  background:#3a4a5a; flex:0 0 auto;
+  transition: all 0.2s ease;
+}
+.hud-chip:hover { border-color: var(--ice-neon); }
+.hud-chip.active {
+  border-color: var(--ice-cyan);
+  color: var(--ice-white);
+  background: rgba(0,229,255,0.12);
+}
+.hud-chip.active .hud-chip-dot {
+  background: var(--ice-green);
+  box-shadow: 0 0 8px var(--ice-green);
+}
+
+/* Pantallas bajas (portátiles 16:9 y ventanas pequeñas) */
+@media (max-height: 640px) and (min-width: 761px) {
+  .overlay { padding: 12px 20px; justify-content: flex-start; }
+  .title { font-size: clamp(30px, 7vh, 52px); margin-bottom: 2px; }
+  .subtitle { margin-bottom: 10px; }
+  .screen-title { font-size: clamp(18px, 4.5vh, 26px); margin-bottom: 8px; }
+  .btn { padding: 8px 16px; margin: 3px 0; font-size: 11px; min-height: 36px; }
+  .sub-title { margin: 10px 0 8px; }
+  .options-panel { gap: 8px; margin-bottom: 10px; }
+  .option-row { padding: 8px 12px; gap: 5px; }
+  .lobby-stats { margin-bottom: 10px; }
+}
+
+@media (max-width: 760px) {
+  .hud-preset-row .btn { flex: 1 1 30%; }
+  .hud-toggle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

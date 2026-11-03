@@ -1,4 +1,4 @@
-﻿const UI = {
+const UI = {
   screens: {},
   current: 'menu',
   _lastScreen: 'menu',
@@ -8,12 +8,36 @@
   _menuNavCooldown: 0,
   _menuLastActiveOverlay: null,
   customizationPlayer: null,
+  _gpBind: null,
+  _rebindHandler: null,
+  _hudDim: false,
+  _openHudFrom: 'options',
+
+  HUD_ELEMENTS: [
+    ['hp',          'HP / vida'],
+    ['abilities',   'Habilidades'],
+    ['floor',       'Piso / jefe'],
+    ['rooms',       'Salas'],
+    ['coins',       'Monedas'],
+    ['stats',       'Estadísticas'],
+    ['xp',          'Nivel / XP'],
+    ['consumables', 'Consumibles'],
+    ['minimap',     'Minimapa'],
+  ],
+
+  KEYBIND_LABELS: {
+    up:'Arriba', down:'Abajo', left:'Izquierda', right:'Derecha',
+    pause:'Pausa',
+    basic:'Ataque Básico', melee:'Melee', long:'Ráfaga Larga',
+    dash:'Dash', block:'Bloqueo', interact:'Interactuar', inventory:'Inventario',
+  },
 
   init() {
     this.screens = {
       menu:          document.getElementById('screen-menu'),
       lobby:         document.getElementById('screen-lobby'),
       options:       document.getElementById('screen-options'),
+      hud:           document.getElementById('screen-hud'),
       stats:         document.getElementById('screen-stats'),
       achievements:  document.getElementById('screen-achievements'),
       shopPerm:      document.getElementById('screen-shop-perm'),
@@ -59,10 +83,18 @@
     bind('btn-options-lobby',() => this.showOptions('lobby'));
     bind('btn-back-menu',  () => this.show('menu'));
 
-    bind('btn-options-back', () => this.show(this._lastScreen === 'battle' ? 'battle' : this._lastScreen));
+    bind('btn-options-back', () => {
+      if (this._lastScreen === 'pause') { this.show('pause'); return; }
+      this.show(this._lastScreen === 'lobby' ? 'lobby' : 'menu');
+    });
     bind('btn-reset-keys',   () => this.resetKeys());
+    bind('btn-reset-pad',    () => this.resetGamepad());
+    bind('btn-hud-options',  () => this.openHud('options'));
+    bind('btn-hud-pause',    () => this.openHud('pause'));
+    bind('btn-hud-back',     () => this.closeHud());
+    bind('btn-hud-reset',    () => this.resetHud());
     bind('btn-reset-save',   () => {
-      if (confirm('Â¿Borrar TODO el progreso?')) {
+      if (confirm('¿Borrar TODO el progreso?')) {
         Save.clear(); save = Save.load();
         this.refreshLobby(); this.refreshOptionsUI(); this.show('menu');
       }
@@ -111,6 +143,7 @@
         document.querySelectorAll('[data-toggle="minimap"]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         save.options.minimap = btn.dataset.value === 'on';
+        save.options.hud.show.minimap = save.options.minimap;
         Save.write();
         this.applyMinimapVisibility();
       });
@@ -125,7 +158,50 @@
       });
     });
 
+    const hudScale = document.getElementById('hudScale');
+    if (hudScale) hudScale.addEventListener('input', e => {
+      save.options.hud.scale = +e.target.value / 100;
+      document.getElementById('hudScaleVal').textContent = e.target.value;
+      Save.write();
+      this.applyHudSettings();
+    });
+    const hudOpacity = document.getElementById('hudOpacity');
+    if (hudOpacity) hudOpacity.addEventListener('input', e => {
+      save.options.hud.opacity = +e.target.value / 100;
+      document.getElementById('hudOpacityVal').textContent = e.target.value;
+      Save.write();
+      this.applyHudSettings();
+    });
+    const hudDelay = document.getElementById('hudDelay');
+    if (hudDelay) hudDelay.addEventListener('input', e => {
+      save.options.hud.autoHideDelay = +e.target.value;
+      document.getElementById('hudDelayVal').textContent = e.target.value;
+      Save.write();
+      this.updateHudDim(performance.now());
+    });
+    document.querySelectorAll('[data-hud-autohide]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        save.options.hud.autoHide = btn.dataset.hudAutohide === 'on';
+        Save.write();
+        this.refreshHudUI();
+        this.updateHudDim(performance.now());
+      });
+    });
+    document.querySelectorAll('[data-hud-preset]').forEach(btn => {
+      btn.addEventListener('click', () => this.applyHudPreset(btn.dataset.hudPreset));
+    });
+
     this.buildKeybindList();
+    this.buildGamepadBindList();
+    this.applyHudSettings();
+    // Escape cancela una asignación de mando pendiente.
+    window.addEventListener('keydown', e => {
+      if (this._gpBind && e.key === 'Escape') {
+        e.preventDefault();
+        this.cancelGamepadBind();
+        this.toast('🎮 Asignación cancelada', 'danger');
+      }
+    });
     this.refreshLobby();
     this.refreshStats();
     this.refreshAchievements();
@@ -140,7 +216,9 @@
   applyMinimapVisibility() {
     const mm = document.getElementById('minimap');
     if (!mm) return;
-    if (save.options.minimap) {
+    const on = !!(save.options.hud && save.options.hud.show.minimap);
+    save.options.minimap = on;
+    if (on) {
       mm.classList.remove('hidden');
     } else {
       mm.classList.add('hidden');
@@ -149,12 +227,129 @@
     }
   },
 
+  /* ================================================================
+     HUD PERSONALIZABLE
+     ================================================================ */
+  openHud(from = 'options') {
+    this._openHudFrom = from;
+    this.refreshHudUI();
+    this.show('hud');
+  },
+
+  closeHud() {
+    this.show(this._openHudFrom === 'pause' ? 'pause' : 'options');
+  },
+
+  refreshHudUI() {
+    const h = save.options.hud;
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const scale = document.getElementById('hudScale');
+    const scalePct = Math.round(h.scale * 100);
+    if (scale) scale.value = scalePct;
+    setVal('hudScaleVal', scalePct);
+
+    const opacity = document.getElementById('hudOpacity');
+    const opacityPct = Math.round(h.opacity * 100);
+    if (opacity) opacity.value = opacityPct;
+    setVal('hudOpacityVal', opacityPct);
+
+    const delay = document.getElementById('hudDelay');
+    if (delay) delay.value = h.autoHideDelay;
+    setVal('hudDelayVal', h.autoHideDelay);
+
+    document.querySelectorAll('[data-hud-autohide]').forEach(b => {
+      b.classList.toggle('active', (b.dataset.hudAutohide === 'on') === !!h.autoHide);
+    });
+    this._buildHudToggles();
+  },
+
+  _buildHudToggles() {
+    const wrap = document.getElementById('hudElementToggles');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    for (const [key, label] of this.HUD_ELEMENTS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hud-chip' + (save.options.hud.show[key] ? ' active' : '');
+      btn.innerHTML = `<span class="hud-chip-dot"></span><span>${label}</span>`;
+      btn.addEventListener('click', () => {
+        save.options.hud.show[key] = !save.options.hud.show[key];
+        this.applyHudSettings();
+        Save.write();
+        btn.classList.toggle('active', save.options.hud.show[key]);
+      });
+      wrap.appendChild(btn);
+    }
+  },
+
+  applyHudSettings() {
+    const hud = document.getElementById('hud');
+    if (!hud || !save.options.hud) return;
+    const h = save.options.hud;
+    hud.style.setProperty('--hud-scale', h.scale);
+    hud.style.setProperty('--hud-opacity', h.opacity);
+    for (const [key] of this.HUD_ELEMENTS) {
+      if (key === 'minimap') continue;
+      hud.classList.toggle('hud-hide-' + key, !h.show[key]);
+    }
+    this.applyMinimapVisibility();
+  },
+
+  applyHudPreset(name) {
+    const h = save.options.hud;
+    const all = {
+      hp:true, abilities:true, floor:true, rooms:true, coins:true,
+      stats:true, xp:true, consumables:true, minimap:true,
+    };
+    if (name === 'compact') {
+      Object.assign(h, { scale: 0.85, opacity: 0.95, autoHide: true, autoHideDelay: 5 });
+      h.show = { ...all, rooms:false, coins:false, stats:false, minimap:false };
+    } else if (name === 'immersive') {
+      Object.assign(h, { scale: 0.8, opacity: 0.9, autoHide: true, autoHideDelay: 3 });
+      h.show = { ...all, floor:false, rooms:false, coins:false, stats:false, xp:false, minimap:false };
+    } else {
+      Object.assign(h, { scale: 1, opacity: 1, autoHide: false, autoHideDelay: 6 });
+      h.show = { ...all };
+    }
+    this.applyHudSettings();
+    Save.write();
+    this.refreshHudUI();
+    this.updateHudDim(performance.now());
+    const label = name === 'compact' ? 'Compacto' : name === 'immersive' ? 'Inmersivo' : 'Completo';
+    this.toast(`🎛 HUD: ${label}`, 'gold');
+  },
+
+  resetHud() {
+    save.options.hud = Save.defaults().options.hud;
+    this.applyHudSettings();
+    Save.write();
+    this.refreshHudUI();
+    this.updateHudDim(performance.now());
+    this.toast('🎛 HUD restaurado', 'gold');
+  },
+
+  updateHudDim(now) {
+    const hud = document.getElementById('hud');
+    if (!hud || !save.options.hud) return;
+    const h = save.options.hud;
+    let dim = false;
+    if (h.autoHide && Game.battleActive && !Game.paused && !this._invModalOpen) {
+      dim = now - (Game.lastCombatAt || 0) > (h.autoHideDelay || 6) * 1000;
+    }
+    if (dim !== this._hudDim) {
+      this._hudDim = dim;
+      hud.classList.toggle('is-dim', dim);
+    }
+  },
+
   show(name) {
+    const app = document.getElementById('app');
+    if (app) app.classList.toggle('overlay-open', name !== 'battle');
     if (name !== 'shop') {
       const title = document.querySelector('#screen-shop .screen-title');
-      if (title) title.innerHTML = 'ðŸª MERCADILLO DEL PISO <span id="shopFloor">1</span>';
+      if (title) title.innerHTML = '🏪 MERCADILLO DEL PISO <span id="shopFloor">1</span>';
       const subtitle = document.querySelector('#screen-shop p');
-      if (subtitle) subtitle.textContent = 'Bienes perecederos y reliquias. Los consumibles se acumulan (mÃ¡x. por tipo).';
+      if (subtitle) subtitle.textContent = 'Bienes perecederos y reliquias. Los consumibles se acumulan (máx. por tipo).';
     }
 
     Object.values(this.screens).forEach(s => s && s.classList.remove('active'));
@@ -198,6 +393,8 @@
     Game.paused = true;
     this.renderInventoryModal();
     this.screens.invModal.classList.add('active');
+    const app = document.getElementById('app');
+    if (app) app.classList.add('overlay-open');
   },
   closeInventoryModal() {
     this._invModalOpen = false;
@@ -205,11 +402,18 @@
     if (Game.battleActive) {
       Game.paused = false;
       this.current = 'battle';
+      const app = document.getElementById('app');
+      if (app) app.classList.remove('overlay-open');
     }
   },
 
   goBack() {
     if (this._invModalOpen) { this.closeInventoryModal(); return true; }
+    if (this.current === 'hud') { this.closeHud(); return true; }
+    if (this.current === 'options') {
+      this.show(this._lastScreen === 'lobby' ? 'lobby' : this._lastScreen === 'pause' ? 'pause' : 'menu');
+      return true;
+    }
     if (Game.paused && Game.battleActive) {
       if (this.current === 'levelup') {
         const firstCard = document.querySelector('#levelupGrid .levelup-card');
@@ -225,7 +429,6 @@
     const backMap = {
       'stats':        'menu',
       'achievements': this._lastScreen === 'lobby' ? 'lobby' : 'menu',
-      'options':      this._lastScreen === 'lobby' ? 'lobby' : 'menu',
       'shopPerm':     'lobby',
       'invMeta':      'lobby',
       'lobby':        'menu',
@@ -241,13 +444,13 @@
     const lvlEl = document.getElementById('invModalLevel');
     if (lvlEl) lvlEl.textContent = Game.run.level;
     document.getElementById('invModalBoss').textContent =
-      (Game.boss && !Game.boss.dead) ? Game.boss.name : 'â€”';
+      (Game.boss && !Game.boss.dead) ? Game.boss.name : '—';
 
     // Reto del piso
     const cEl = document.getElementById('invModalChallenge');
     if (cEl) {
       if (Game.floorChallenge) {
-        cEl.innerHTML = `<span style="font-size:18px;">${Game.floorChallenge.icon}</span> <strong style="color:#ff8aa3;letter-spacing:2px;">RETO DEL PISO:</strong> ${Game.floorChallenge.name} â€” <em>${Game.floorChallenge.desc}</em>`;
+        cEl.innerHTML = `<span style="font-size:18px;">${Game.floorChallenge.icon}</span> <strong style="color:#ff8aa3;letter-spacing:2px;">RETO DEL PISO:</strong> ${Game.floorChallenge.name} — <em>${Game.floorChallenge.desc}</em>`;
       } else {
         cEl.innerHTML = '';
         cEl.style.display = 'none';
@@ -264,7 +467,7 @@
         const tag = document.createElement('div');
         tag.className = 'synergy-tag';
         const bonusText = Object.entries(s.bonus).map(([k,v]) => `+${v} ${k.toUpperCase()}`).join(', ');
-        tag.textContent = `${s.name} Â· ${bonusText}`;
+        tag.textContent = `${s.name} · ${bonusText}`;
         synEl.appendChild(tag);
       }
     }
@@ -272,7 +475,7 @@
     const grid = document.getElementById('invModalItems');
     grid.innerHTML = '';
     if (Game.run.items.length === 0) {
-      grid.innerHTML = '<span class="synergy-empty">AÃºn no tienes items esta run.</span>';
+      grid.innerHTML = '<span class="synergy-empty">Aún no tienes items esta run.</span>';
     } else {
       for (const id of Game.run.items) {
         const item = ITEMS_DB.find(i => i.id === id);
@@ -310,7 +513,7 @@
             <div class="inv-modal-icon" style="filter:drop-shadow(0 0 8px ${rar.color});">${def.icon}</div>
             <div class="inv-modal-name">${def.name}</div>
             <div class="inv-modal-desc">${def.desc}</div>
-            <div class="inv-modal-rarity" style="color:${rar.color};">x${count} Â· ${rar.label}</div>
+            <div class="inv-modal-rarity" style="color:${rar.color};">x${count} · ${rar.label}</div>
           `;
           consGrid.appendChild(div);
         }
@@ -318,7 +521,7 @@
     }
   },
 
-  /* ðŸ—ºï¸ Actualiza el badge del reto del piso en el HUD */
+  /* 🗺️ Actualiza el badge del reto del piso en el HUD */
   updateChallengeBadge() {
     const badge = document.getElementById('challengeBadge');
     const iconEl = document.getElementById('challengeIcon');
@@ -331,7 +534,7 @@
     }
     const c = Game.floorChallenge;
     badge.style.display = 'flex';
-    // Quitar clases previas y aÃ±adir la actual
+    // Quitar clases previas y añadir la actual
     badge.classList.remove('easy', 'medium', 'hard', 'extreme');
     badge.classList.add(c.severity || 'medium');
     iconEl.textContent = c.icon;
@@ -347,7 +550,7 @@
     const btn = document.getElementById('btn-endless');
     if (btn) {
       btn.disabled = save.bestFloor < CFG.ENDLESS_UNLOCK;
-      btn.textContent = save.bestFloor >= CFG.ENDLESS_UNLOCK ? 'âˆž Modo Endless' : `âˆž Endless (Piso ${CFG.ENDLESS_UNLOCK})`;
+      btn.textContent = save.bestFloor >= CFG.ENDLESS_UNLOCK ? '∞ Modo Endless' : `∞ Endless (Piso ${CFG.ENDLESS_UNLOCK})`;
     }
   },
 
@@ -358,7 +561,7 @@
     if (!grid || !preview || !selectedLabel) return;
 
     const selected = PlayerCustomization.selected(this.customizationPlayer);
-    selectedLabel.textContent = `${this.customizationPlayer ? this.customizationPlayer.toUpperCase() + ' Â· ' : ''}Seleccionado: ${selected.name}`;
+    selectedLabel.textContent = `${this.customizationPlayer ? this.customizationPlayer.toUpperCase() + ' · ' : ''}Seleccionado: ${selected.name}`;
     grid.innerHTML = '';
     const ctx = preview.getContext('2d');
     ctx.clearRect(0, 0, preview.width, preview.height);
@@ -429,6 +632,7 @@
     document.querySelectorAll('[data-diff]').forEach(b => {
       b.classList.toggle('active', save.options.difficulty === b.dataset.diff);
     });
+    this.buildGamepadBindList();
   },
 
   refreshStats() {
@@ -444,7 +648,7 @@
       <div class="stat-row"><span class="label">Mejoras compradas</span><span class="value">${save.totalUpgradesBought || 0}</span></div>
       <div class="stat-row"><span class="label">Mejor nivel</span><span class="value">${save.bestLevelReached || 1}</span></div>
       <div class="stat-row"><span class="label">Tiradas gacha</span><span class="value">${save.totalGachaRolls || 0}</span></div>
-      <div class="stat-row"><span class="label">ObstÃ¡culos destruidos</span><span class="value">${save.totalObstaclesDestroyed || 0}</span></div>
+      <div class="stat-row"><span class="label">Obstáculos destruidos</span><span class="value">${save.totalObstaclesDestroyed || 0}</span></div>
       <div class="stat-row"><span class="label">Consumibles usados</span><span class="value">${save.totalConsumablesUsed || 0}</span></div>
       <div class="stat-row"><span class="label">Logros</span><span class="value">${Object.keys(save.achievements || {}).length} / ${ACHIEVEMENTS_DB.length}</span></div>
     `;
@@ -465,7 +669,7 @@
       const card = document.createElement('div');
       card.className = `ach-card ${unlocked ? 'unlocked' : 'locked'}`;
       card.innerHTML = `
-        ${unlocked ? '<div class="ach-card-badge">âœ“</div>' : ''}
+        ${unlocked ? '<div class="ach-card-badge">✓</div>' : ''}
         <div class="ach-card-icon" style="color:${unlocked ? '#ffd54f' : '#7a9ab0'};">${ach.icon}</div>
         <div class="ach-card-name">${ach.name}</div>
         <div class="ach-card-desc">${ach.desc}</div>
@@ -507,7 +711,7 @@
   _showAchievementToast(ach) {
     const el = document.createElement('div');
     el.className = 'toast achievement';
-    el.innerHTML = `ðŸ† <strong>LOGRO:</strong> ${ach.icon} ${ach.name}`;
+    el.innerHTML = `🏆 <strong>LOGRO:</strong> ${ach.icon} ${ach.name}`;
     document.getElementById('toasts').appendChild(el);
     setTimeout(() => el.remove(), 3200);
   },
@@ -518,11 +722,11 @@
     const grid = document.getElementById('permShopGrid');
     if (!grid) return;
     const ups = [
-      { id:'atk',   icon:'âš”ï¸', name:'+2 ATK',    cost:75 },
-      { id:'def',   icon:'ðŸ›¡ï¸', name:'+2 DEF',    cost:75 },
-      { id:'maxHp', icon:'â¤ï¸', name:'+5 HP',     cost:100 },
-      { id:'speed', icon:'ðŸ’¨', name:'+0.15 VEL', cost:85 },
-      { id:'crit',  icon:'ðŸŽ¯', name:'+2% CRIT',  cost:110 },
+      { id:'atk',   icon:'⚔️', name:'+2 ATK',    cost:75 },
+      { id:'def',   icon:'🛡️', name:'+2 DEF',    cost:75 },
+      { id:'maxHp', icon:'❤️', name:'+5 HP',     cost:100 },
+      { id:'speed', icon:'💨', name:'+0.15 VEL', cost:85 },
+      { id:'crit',  icon:'🎯', name:'+2% CRIT',  cost:110 },
     ];
     grid.innerHTML = '';
     for (const u of ups) {
@@ -532,10 +736,10 @@
       const div = document.createElement('div');
       div.className = 'stat-row';
       div.innerHTML = `
-        <span class="label">${u.icon} ${u.name} Â· Nv.${lvl}/10</span>
-        <span class="value">â—† ${cost}
+        <span class="label">${u.icon} ${u.name} · Nv.${lvl}/10</span>
+        <span class="value">◆ ${cost}
           <button class="btn small" style="display:inline-block; margin-left:8px; min-width:auto; padding:4px 10px; font-size:10px;"
-            ${canBuy ? '' : 'disabled'}>${lvl >= 10 ? 'MÃX' : 'COMPRAR'}</button>
+            ${canBuy ? '' : 'disabled'}>${lvl >= 10 ? 'MÁX' : 'COMPRAR'}</button>
         </span>
       `;
       if (canBuy) {
@@ -574,37 +778,59 @@
   buildKeybindList() {
     const list = document.getElementById('keybindList');
     if (!list) return;
-    const labels = {
-      up:'Arriba', down:'Abajo', left:'Izquierda', right:'Derecha',
-      pause:'Pausa',
-      basic:'Ataque BÃ¡sico', melee:'Melee', long:'RÃ¡faga Larga', dash:'Dash', inventory:'Inventario',
-    };
     list.innerHTML = '';
-    for (const [key, label] of Object.entries(labels)) {
+    for (const [key, label] of Object.entries(this.KEYBIND_LABELS)) {
       const row = document.createElement('div');
       row.className = 'keybind-row';
-      const keyName = save.keybinds[key] === ' ' ? 'Espacio' : (save.keybinds[key] || '').toUpperCase();
-      row.innerHTML = `<span class="keybind-label">${label}</span><button class="keybind-key" data-key="${key}">${keyName}</button>`;
-      row.querySelector('.keybind-key').addEventListener('click', e => this.startRebind(e.target, key));
+      row.innerHTML = `<span class="keybind-label">${label}</span><button class="keybind-key" type="button" data-key="${key}">${this._keyLabel(save.keybinds[key])}</button>`;
+      row.querySelector('.keybind-key').addEventListener('click', e => this.startRebind(e.currentTarget, key));
       list.appendChild(row);
     }
     this.updateKeyLabels();
   },
 
-  startRebind(btn, key) {
-    if (btn.classList.contains('listening')) return;
-    btn.classList.add('listening');
-    btn.textContent = '...';
-    const handler = e => {
-      e.preventDefault();
-      const k = e.key.toLowerCase();
-      if (k !== 'escape') { save.keybinds[key] = k; Save.write(); }
-      btn.classList.remove('listening');
-      btn.textContent = k === ' ' ? 'Espacio' : k.toUpperCase();
-      this.updateKeyLabels();
-      window.removeEventListener('keydown', handler, true);
+  _keyLabel(k) {
+    if (!k) return '—';
+    const special = {
+      ' ': 'Espacio', arrowup: '↑', arrowdown: '↓', arrowleft: '←', arrowright: '→',
+      shift: 'Shift', control: 'Ctrl', alt: 'Alt', escape: 'Esc',
     };
-    window.addEventListener('keydown', handler, true);
+    return special[k] || k.toUpperCase();
+  },
+
+  startRebind(btn, key) {
+    if (this._rebindHandler) this.cancelRebind();
+    btn.classList.add('listening');
+    btn.textContent = '…';
+    const finish = () => {
+      window.removeEventListener('keydown', this._rebindHandler, true);
+      this._rebindHandler = null;
+      this.buildKeybindList();
+    };
+    this._rebindHandler = e => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const k = e.key.toLowerCase();
+      if (k !== 'escape') {
+        const previous = save.keybinds[key];
+        const conflict = Object.keys(save.keybinds).find(a => a !== key && save.keybinds[a] === k);
+        save.keybinds[key] = k;
+        if (conflict) {
+          save.keybinds[conflict] = previous;
+          this.toast(`↔ ${this.KEYBIND_LABELS[conflict] || conflict} ahora usa ${this._keyLabel(previous)}`, 'gold');
+        }
+        Save.write();
+      }
+      finish();
+    };
+    window.addEventListener('keydown', this._rebindHandler, true);
+  },
+
+  cancelRebind() {
+    if (!this._rebindHandler) return;
+    window.removeEventListener('keydown', this._rebindHandler, true);
+    this._rebindHandler = null;
+    this.buildKeybindList();
   },
 
   updateKeyLabels() {
@@ -671,7 +897,121 @@
     save.keybinds = Save.defaults().keybinds;
     Save.write();
     this.buildKeybindList();
-    this.toast('â†» Controles restaurados', 'gold');
+    this.toast('↻ Controles restaurados', 'gold');
+  },
+
+  /* ================================================================
+     MAPEO DEL MANDO
+     ================================================================ */
+  _gamepadActions: [
+    ['basic',     'Ataque'],
+    ['melee',     'Melee'],
+    ['long',      'Ráfaga'],
+    ['dash',      'Dash'],
+    ['block',     'Bloqueo'],
+    ['pause',     'Pausa'],
+    ['inventory', 'Inventario'],
+    ['confirm',   'Confirmar (menú)'],
+    ['cancel',    'Volver (menú)'],
+  ],
+
+  _gamepadActionLabel(action) {
+    const found = this._gamepadActions.find(([id]) => id === action);
+    return found ? found[1] : action;
+  },
+
+  buildGamepadBindList() {
+    const list = document.getElementById('gamepadBindList');
+    if (!list) return;
+    list.innerHTML = '';
+    for (const [action, label] of this._gamepadActions) {
+      const value = save.gamepad ? save.gamepad[action] : undefined;
+      const listening = !!(this._gpBind && this._gpBind.action === action);
+      const row = document.createElement('div');
+      row.className = 'keybind-row';
+      row.innerHTML = `<span class="keybind-label">${label}</span>` +
+        `<button class="keybind-key${listening ? ' listening' : ''}" type="button">${listening ? '…' : Gamepad.buttonName(value)}</button>`;
+      row.querySelector('.keybind-key').addEventListener('click', e => {
+        e.stopPropagation();
+        this.startGamepadBind(e.currentTarget, action);
+      });
+      list.appendChild(row);
+    }
+    this._updateGamepadStatus();
+  },
+
+  refreshGamepadSection() {
+    this.buildGamepadBindList();
+  },
+
+  startGamepadBind(btn, action) {
+    if (!Gamepad.connected) {
+      this.toast('🎮 Mando no detectado: conéctalo y pulsa un botón', 'danger');
+      return;
+    }
+    if (this._gpBind && this._gpBind.action === action) { this.cancelGamepadBind(); return; }
+    this.cancelGamepadBind();
+    this._gpBind = { action, btn };
+    btn.classList.add('listening');
+    btn.textContent = '…';
+    this.toast('🎮 Pulsa el botón que quieras asignar', 'gold');
+  },
+
+  cancelGamepadBind() {
+    if (!this._gpBind) return;
+    this._gpBind = null;
+    this.buildGamepadBindList();
+  },
+
+  _captureGamepadBind() {
+    if (!this._gpBind) return;
+    const gp = Gamepad.get();
+    if (!gp) { this.cancelGamepadBind(); return; }
+    for (let i = 0; i < gp.buttons.length; i++) {
+      if (!Gamepad.justPressedUI(i)) continue;
+      const action = this._gpBind.action;
+      const sharedWith = Object.keys(save.gamepad)
+        .filter(a => a !== action && save.gamepad[a] === i)
+        .map(a => this._gamepadActionLabel(a));
+      save.gamepad[action] = i;
+      Save.write();
+      this._gpBind = null;
+      Audio2.click();
+      this.buildGamepadBindList();
+      this.updateKeyLabels();
+      const extra = sharedWith.length ? ` · comparte con ${sharedWith.join(', ')}` : '';
+      this.toast(`🎮 ${this._gamepadActionLabel(action)} → ${Gamepad.buttonName(i)}${extra}`, 'gold');
+      return;
+    }
+  },
+
+  resetGamepad() {
+    save.gamepad = Gamepad.defaultMapping();
+    Save.write();
+    this._gpBind = null;
+    this.buildGamepadBindList();
+    this.updateKeyLabels();
+    this.toast('🎮 Mapeo del mando restaurado', 'gold');
+  },
+
+  _updateGamepadStatus() {
+    const el = document.getElementById('gamepadStatus');
+    if (!el) return;
+    if (!navigator.getGamepads) {
+      el.textContent = '⚠ Este navegador no expone la Gamepad API. Usa Chrome o Edge actualizados.';
+      el.className = 'pad-status offline';
+      return;
+    }
+    if (!Gamepad.connected) {
+      el.textContent = '🔌 Mando no detectado. Conéctalo por USB/Bluetooth, pulsa un botón con la pestaña activa y, si no aparece, recarga la página.';
+      el.className = 'pad-status offline';
+      return;
+    }
+    const pressed = Gamepad.pressedList();
+    const names = pressed.map(i => `${Gamepad.buttonName(i)} [${i}]`).join(' + ');
+    const mode = Gamepad.isStandardMapping() ? 'estándar' : 'genérico — remapea si algo no coincide';
+    el.textContent = `🎮 ${Gamepad._shortName(Gamepad.id)} · mapeo ${mode} · pulsados: ${pressed.length ? names : 'ninguno'}`;
+    el.className = 'pad-status online';
   },
 
   updateHud() {
@@ -680,7 +1020,7 @@
       document.getElementById('hpFill').style.width = (p.hp / p.maxHp * 100) + '%';
       document.getElementById('hpText').textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
       document.getElementById('statsText').textContent =
-        `${p.atk.toFixed(0)} Â· ${p.def.toFixed(0)} Â· ${p.speed.toFixed(1)} Â· ${(p.crit*100).toFixed(0)}%`;
+        `${p.atk.toFixed(0)} · ${p.def.toFixed(0)} · ${p.speed.toFixed(1)} · ${(p.crit*100).toFixed(0)}%`;
     }
     const p2 = Game.coop ? Game.players[1] : null;
     const p2Hud = document.getElementById('hud-p2');
@@ -689,8 +1029,8 @@
       if (p2) {
         document.getElementById('p2HpFill').style.width = Math.max(0, p2.hp / p2.maxHp * 100) + '%';
         document.getElementById('p2HpText').textContent = p2.downed
-          ? 'CAÃDO â€” acÃ©rcate para revivir'
-          : `${Math.ceil(p2.hp)} / ${p2.maxHp}${p2.shieldUntil > performance.now() ? ' Â· ðŸ›¡' : ''}`;
+          ? 'CAÍDO — acércate para revivir'
+          : `${Math.ceil(p2.hp)} / ${p2.maxHp}${p2.shieldUntil > performance.now() ? ' · 🛡' : ''}`;
       }
     }
     document.getElementById('floorText').textContent = Game.floor;
@@ -698,7 +1038,7 @@
     const total = Game.rooms ? Game.rooms.flat().filter(r => r).length : 0;
     document.getElementById('roomsText').textContent = `${cleared} / ${total}`;
     const coinsEl = document.getElementById('runCoinsText');
-    if (coinsEl) coinsEl.textContent = `â—† ${Game.run.coins}`;
+    if (coinsEl) coinsEl.textContent = `◆ ${Game.run.coins}`;
     const bossInline = document.getElementById('bossInline');
     if (Game.boss && !Game.boss.dead) {
       bossInline.style.display = 'flex';
@@ -778,7 +1118,7 @@
 
       if (!slot) {
         div.classList.add('empty');
-        div.innerHTML = `<div class="cs-icon" style="opacity:0.3;">Â·</div><div class="cs-key">${i+1}</div>`;
+        div.innerHTML = `<div class="cs-icon" style="opacity:0.3;">·</div><div class="cs-key">${i+1}</div>`;
       } else {
         const def = CONSUMABLES_DB.find(c => c.id === slot.id);
         div.innerHTML = `
@@ -786,7 +1126,7 @@
           <div class="cs-count">${slot.count}</div>
           <div class="cs-key">${i+1}</div>
         `;
-        div.title = def ? `${def.name} â€” ${def.desc}` : '';
+        div.title = def ? `${def.name} — ${def.desc}` : '';
         div.addEventListener('click', () => {
           if (Game.battleActive && !Game.paused) Game.useConsumable(slot.id);
         });
@@ -901,7 +1241,7 @@
         <div class="shop-item-name">${item.name}</div>
         <div class="shop-item-desc">${item.desc}<br><small style="color:${rar.color};">${rar.label}</small></div>
         ${stockLine}
-        <div class="shop-item-price ${canBuy ? '' : 'cant'}">â—† ${cost}</div>
+        <div class="shop-item-price ${canBuy ? '' : 'cant'}">◆ ${cost}</div>
         <button class="shop-item-buy" ${canBuy ? '' : 'disabled'}>
           ${alreadyOwned ? (isConsumable ? 'STACK LLENO' : 'COMPRADO') : (coins < cost ? 'SIN FONDOS' : 'COMPRAR')}
         </button>
@@ -948,7 +1288,7 @@
     const header = document.createElement('div');
     header.style.cssText = 'grid-column: 1/-1; text-align:center; color:#b48aff; font-weight:bold; letter-spacing:2px; margin-bottom:8px;';
     header.innerHTML = `
-      <div style="font-size:20px;">ðŸ“¦ COFRE MISTERIOSO</div>
+      <div style="font-size:20px;">📦 COFRE MISTERIOSO</div>
       <div style="font-size:11px; color:#b2ebf2; font-weight:normal; letter-spacing:1px; margin-top:4px;">Elige UN item de los 3 que aparecen</div>
     `;
     grid.appendChild(header);
@@ -980,11 +1320,11 @@
     info.style.cssText = 'grid-column: 1/-1; text-align:center; color:#b2ebf2; font-size:12px; line-height:1.8;';
     const pity = Game.currentRoom ? (Game.currentRoom.gachaPity || 0) : 0;
     info.innerHTML = `
-      <div style="font-size:14px;color:#7b61ff;font-weight:bold;letter-spacing:2px;margin-bottom:6px;">ðŸŽ° GACHA GLACIAL</div>
-      <div>ObtÃ©n mejoras permanentes aleatorias para esta run.</div>
-      <div style="color:#ffd54f;">Rarezas: ComÃºn Â· Rara Â· Ã‰pica Â· Legendaria</div>
-      <div>Pity: <strong>${pity}/10</strong> â€” Ã©pico+ garantizado al llegar a 10.</div>
-      <div style="margin-top:8px;">Monedas: <strong style="color:#ffd54f;">â—† ${coins}</strong></div>
+      <div style="font-size:14px;color:#7b61ff;font-weight:bold;letter-spacing:2px;margin-bottom:6px;">🎰 GACHA GLACIAL</div>
+      <div>Obtén mejoras permanentes aleatorias para esta run.</div>
+      <div style="color:#ffd54f;">Rarezas: Común · Rara · Épica · Legendaria</div>
+      <div>Pity: <strong>${pity}/10</strong> — épico+ garantizado al llegar a 10.</div>
+      <div style="margin-top:8px;">Monedas: <strong style="color:#ffd54f;">◆ ${coins}</strong></div>
     `;
     grid.appendChild(info);
 
@@ -993,10 +1333,10 @@
     const divSingle = document.createElement('div');
     divSingle.className = 'shop-item rarity-rare';
     divSingle.innerHTML = `
-      <div class="shop-item-icon" style="filter:drop-shadow(0 0 8px #00e5ff);">ðŸŽ²</div>
+      <div class="shop-item-icon" style="filter:drop-shadow(0 0 8px #00e5ff);">🎲</div>
       <div class="shop-item-name">Tirada simple</div>
       <div class="shop-item-desc">1 mejora aleatoria.</div>
-      <div class="shop-item-price ${canSingle ? '' : 'cant'}">â—† ${singleCost}</div>
+      <div class="shop-item-price ${canSingle ? '' : 'cant'}">◆ ${singleCost}</div>
       <button class="shop-item-buy" ${canSingle ? '' : 'disabled'}>GIRAR</button>
     `;
     if (canSingle) {
@@ -1009,10 +1349,10 @@
     const divTriple = document.createElement('div');
     divTriple.className = 'shop-item rarity-epic';
     divTriple.innerHTML = `
-      <div class="shop-item-icon" style="filter:drop-shadow(0 0 8px #7b61ff);">ðŸŽ²ðŸŽ²ðŸŽ²</div>
+      <div class="shop-item-icon" style="filter:drop-shadow(0 0 8px #7b61ff);">🎲🎲🎲</div>
       <div class="shop-item-name">Tirada triple</div>
       <div class="shop-item-desc">3 mejoras. <strong style="color:#7bff9f;">-10% descuento</strong></div>
-      <div class="shop-item-price ${canTriple ? '' : 'cant'}">â—† ${tripleCost}</div>
+      <div class="shop-item-price ${canTriple ? '' : 'cant'}">◆ ${tripleCost}</div>
       <button class="shop-item-buy" ${canTriple ? '' : 'disabled'}>GIRAR x3</button>
     `;
     if (canTriple) {
@@ -1024,7 +1364,7 @@
     divClose.className = 'shop-item';
     divClose.style.borderColor = '#7a9ab0';
     divClose.innerHTML = `
-      <div class="shop-item-icon">ðŸšª</div>
+      <div class="shop-item-icon">🚪</div>
       <div class="shop-item-name">Salir</div>
       <div class="shop-item-desc">Abandonar el gacha.</div>
       <button class="shop-item-buy">CERRAR</button>
@@ -1043,7 +1383,7 @@
 
     const header = document.createElement('div');
     header.style.cssText = 'grid-column: 1/-1; text-align:center; margin-bottom:8px;';
-    header.innerHTML = `<div style="font-size:20px;color:#ffd54f;font-weight:bold;letter-spacing:3px;">âœ¦ RESULTADOS âœ¦</div>`;
+    header.innerHTML = `<div style="font-size:20px;color:#ffd54f;font-weight:bold;letter-spacing:3px;">✦ RESULTADOS ✦</div>`;
     grid.appendChild(header);
 
     for (const roll of results) {
@@ -1054,7 +1394,7 @@
       div.innerHTML = `
         <div class="shop-item-icon" style="font-size:42px;filter:drop-shadow(0 0 12px ${rar.color});">${roll.icon}</div>
         <div class="shop-item-name" style="font-size:13px;color:${rar.color};">${roll.name}</div>
-        <div class="shop-item-desc">${rar.label === 'Legendario' ? 'â­ Â¡LEGENDARIO!' : rar.label === 'Ã‰pico' ? 'ðŸ’œ Ã‰pico' : rar.label === 'Raro' ? 'ðŸ’™ Raro' : 'ComÃºn'}</div>
+        <div class="shop-item-desc">${rar.label === 'Legendario' ? '⭐ ¡LEGENDARIO!' : rar.label === 'Épico' ? '💜 Épico' : rar.label === 'Raro' ? '💙 Raro' : 'Común'}</div>
       `;
       grid.appendChild(div);
     }
@@ -1096,10 +1436,10 @@
     const title = document.getElementById('goTitle');
     const info = document.getElementById('goInfo');
     if (victory) {
-      title.textContent = 'ðŸ† Â¡VICTORIA FINAL!';
+      title.textContent = '🏆 ¡VICTORIA FINAL!';
       title.style.color = '#4dffff';
     } else {
-      title.textContent = 'ðŸ’€ DERROTA';
+      title.textContent = '💀 DERROTA';
       title.style.color = '#ff3d71';
     }
     const synergiesActive = SYNERGIES.filter(s => s.ids.every(id => Game.run.items.includes(id))).length;
@@ -1126,9 +1466,11 @@
   },
 
   /* ================================================================
-     NAVEGACIÃ“N CON MANDO + ANIMACIÃ“N DE FOCO
+     NAVEGACIÓN CON MANDO + ANIMACIÓN DE FOCO
      ================================================================ */
   handleGamepadMenuNav() {
+    if (this._gpBind) { this._captureGamepadBind(); return; }
+    if (this.current === 'options') this._updateGamepadStatus();
     const activeOverlay = document.querySelector('.overlay.active');
     if (!activeOverlay) {
       this._menuLastActiveOverlay = null;
@@ -1143,8 +1485,8 @@
     const buttons = Array.from(activeOverlay.querySelectorAll(
       'button:not([disabled]):not(.keybind-key), input[type="range"], .levelup-card, .ach-card, .shop-item'
     )).filter(el => {
-      // Una tarjeta con botÃ³n debe ser un solo elemento navegable.
-      // AsÃ­ el mando no se detiene en la tarjeta antes de llegar a CERRAR.
+      // Una tarjeta con botón debe ser un solo elemento navegable.
+      // Así el mando no se detiene en la tarjeta antes de llegar a CERRAR.
       return (!el.classList.contains('shop-item') && !el.classList.contains('levelup-card')) ||
         !el.querySelector('button');
     });
@@ -1182,7 +1524,7 @@
       }
     }
 
-    // âœ¨ Aplicar .focused con auto-scroll
+    // ✨ Aplicar .focused con auto-scroll
     buttons.forEach((b, i) => {
       if (i === this._menuFocusIndex) {
         if (!b.classList.contains('focused')) {
@@ -1232,8 +1574,10 @@ window.addEventListener('load', () => {
   document.body.addEventListener('click', () => Audio2.init(), { once: true });
   setInterval(() => {
     if (Game.battleActive && !Game.paused) UI.updateAbilityCooldowns();
+    if (UI.current === 'options') UI._updateGamepadStatus();
+    UI.updateHudDim(performance.now());
   }, 100);
-  console.log('â„ ICE RUN v14 â€” XP dura + AnimaciÃ³n foco + Reto por piso');
+  console.log('❄ ICE RUN v14 — XP dura + Animación foco + Reto por piso');
 });
 
 document.addEventListener('visibilitychange', () => {
@@ -1253,7 +1597,7 @@ document.addEventListener('visibilitychange', () => {
 
   window.addEventListener('appinstalled', () => {
     installPrompt = null;
-    if (typeof UI !== 'undefined') UI.toast('ðŸ“± AplicaciÃ³n instalada', 'gold');
+    if (typeof UI !== 'undefined') UI.toast('📱 Aplicación instalada', 'gold');
   });
 
   window.downloadGameApk = async () => {
@@ -1262,7 +1606,7 @@ document.addEventListener('visibilitychange', () => {
       const result = await installPrompt.userChoice;
       installPrompt = null;
       if (result.outcome === 'accepted' && typeof UI !== 'undefined') {
-        UI.toast('ðŸ“± InstalaciÃ³n iniciada', 'gold');
+        UI.toast('📱 Instalación iniciada', 'gold');
       }
       return;
     }
@@ -1277,7 +1621,7 @@ document.addEventListener('visibilitychange', () => {
     } catch (error) {
       console.error('No se pudo descargar la APK:', error);
       if (typeof UI !== 'undefined') {
-        UI.toast('La APK aÃºn no estÃ¡ publicada. Usa la instalaciÃ³n de Android o genera el APK.', 'danger');
+        UI.toast('La APK aún no está publicada. Usa la instalación de Android o genera el APK.', 'danger');
       }
     }
   };
