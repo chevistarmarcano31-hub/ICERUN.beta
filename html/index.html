@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/screens.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/levelup.css">
+<link rel="stylesheet" href="css/mobile-hud-editor.css">
 </head>
 <body>
 <div id="app" class="overlay-open">
@@ -161,33 +162,92 @@
     <button class="btn" id="btn-inv-modal-close">✕ Cerrar (B)</button>
   </div>
 
+  <div class="overlay armory-screen" id="screen-armory">
+    <div class="armory-layout">
+      <aside class="armory-nav">
+        <div class="armory-nav-label">NAVEGACIÓN</div>
+        <button class="armory-tab active" type="button">♜ <span>SALA DE<br>COLECCIÓN</span></button>
+        <button class="armory-tab" id="btn-armory-skin" type="button">♙ <span>PERSONALIZAR<br>SKIN</span></button>
+        <div class="armory-current">SELECCIÓN ACTUAL<strong>OPERATIVO // 07</strong></div>
+      </aside>
+
+      <main class="armory-main">
+        <header class="armory-header">
+          <h2>ARMERÍA Y HABILIDADES</h2>
+          <p>ARSENAL TÁCTICO // CONFIGURACIÓN DE COMBATE</p>
+        </header>
+        <section class="armory-weapons">
+          <div class="armory-section-heading"><h3>ARMERÍA</h3><span>4 / 6 EQUIPADAS</span></div>
+          <div class="armory-weapon-grid">
+            <button class="armory-weapon selected" type="button" data-weapon="Vigilante">
+              <strong>VIGILANTE</strong><small>RIFLE DE FRANCOTIRADOR</small><div class="weapon-art">╞═══════◉</div><em>◉ RIFLE</em>
+            </button>
+            <button class="armory-weapon" type="button" data-weapon="Rompehielo">
+              <strong>ROMPEHIELO</strong><small>ESCOPETA TÁCTICA</small><div class="weapon-art">╞════╤══</div><em>◉ PESADA</em>
+            </button>
+            <button class="armory-weapon" type="button" data-weapon="Centinela">
+              <strong>CENTINELA</strong><small>PISTOLA DE PRECISIÓN</small><div class="weapon-art">╞═══◉</div><em>◉ PISTOLA</em>
+            </button>
+            <button class="armory-weapon" type="button" data-weapon="Avispón">
+              <strong>AVISPÓN</strong><small>SUBFUSIL AUTOMÁTICO</small><div class="weapon-art">╞════╪══</div><em>◉ RÁFAGA</em>
+            </button>
+          </div>
+        </section>
+        <section class="armory-upgrades">
+          <div><span>MEJORA DEL ARMA SELECCIONADA</span><strong>NIVEL 4/4</strong><div class="upgrade-progress"><i></i></div></div>
+          <button class="armory-skill passive" type="button">♡<small>PASIVA</small></button>
+          <button class="armory-skill active" type="button">ϟ<small>ACTIVA</small></button>
+        </section>
+      </main>
+
+      <aside class="armory-character">
+        <h3>PERSONAJE</h3><p>ESTÉTICO // SIN CAMBIO DE ESTADÍSTICAS</p>
+        <div class="character-silhouette"><span>♙</span></div>
+        <strong>OPERATIVO // 07</strong>
+        <div class="skin-options"><button type="button">CAMISA</button><button type="button">PANTALÓN</button><button type="button">CASCO</button></div>
+        <div class="skin-arrows"><button type="button">‹</button><button type="button">›</button></div>
+      </aside>
+    </div>
+    <div class="armory-actions">
+      <button class="btn danger" id="btn-armory-back">← Volver</button>
+      <button class="armory-equip" id="btn-armory-equip" type="button">EQUIPAR</button>
+    </div>
+  </div>
+
   <div class="overlay active" id="screen-menu">
     <h1 class="title">ICE RUN</h1>
     <p class="subtitle">❄ Roguelike Glacial ❄</p>
-    <button class="btn" id="btn-play">▶ Jugar</button>
-    <button class="btn gold" id="btn-survival-menu">⚔ Modo Supervivencia</button>
-    <button class="btn" id="btn-options">⚙ Opciones</button>
-    <button class="btn" id="btn-stats">📊 Estadísticas</button>
-    <button class="btn gold" id="btn-achievements">🏆 Logros</button>
+    <button class="btn menu-btn" id="btn-play">▶ Jugar</button>
+    <button class="btn menu-btn gold" id="btn-survival-menu">⚔ Modo Supervivencia</button>
+    <button class="btn menu-btn" id="btn-options">⚙ Opciones</button>
+    <button class="btn menu-btn" id="btn-stats">📊 Estadísticas</button>
+    <button class="btn menu-btn gold" id="btn-achievements">🏆 Logros</button>
+    <button class="btn menu-btn" id="btn-collection-menu">🏆 Sala de colección</button>
+    <button class="btn menu-btn" id="btn-skin-menu">♙ Personalizar skin</button>
   </div>
 
   <div class="overlay" id="screen-lobby">
-    <h2 class="screen-title">LOBBY</h2>
-    <div class="lobby-stats">
+    <h2 class="screen-title" id="lobby-title">LOBBY</h2>
+    <div class="lobby-stats" id="lobby-stats">
       <div>◆ <span id="lobbyCoins">0</span></div>
       <div>✦ <span id="lobbyGems">0</span></div>
       <div>🏆 Piso <span id="lobbyBest">0</span></div>
     </div>
-    <button class="btn" id="btn-new-run">▶ Iniciar Run</button>
-    <button class="btn coop-btn" id="btn-coop-run">❄❄ Cooperativo local (2 jugadores)</button>
-    <button class="btn gold" id="btn-survival">⚔ Modo Supervivencia</button>
-    <button class="btn gold" id="btn-endless" disabled>∞ Endless (Bloqueado)</button>
-    <button class="btn" id="btn-shop-perm">🛒 Tienda Permanente</button>
-    <button class="btn" id="btn-inv-meta">🎒 Inventario Meta</button>
-    <button class="btn" id="btn-customize">🎨 Personalizar personaje</button>
-    <button class="btn" id="btn-achievements-lobby">🏆 Logros</button>
-    <button class="btn" id="btn-options-lobby">⚙ Opciones</button>
-    <button class="btn danger" id="btn-back-menu">← Menú</button>
+    <div class="lobby-actions">
+    <button class="btn lobby-action" id="btn-new-run">▶ Iniciar Run</button>
+    <button class="btn coop-btn lobby-action" id="btn-coop-run">❄❄ Cooperativo local (2 jugadores)</button>
+    <button class="btn gold lobby-action" id="btn-survival">⚔ Modo Supervivencia</button>
+    <button class="btn gold lobby-action" id="btn-endless" disabled>∞ Endless (Bloqueado)</button>
+    <button class="btn lobby-action" id="btn-shop-perm">🛒 Tienda Permanente</button>
+    <button class="btn lobby-action" id="btn-inv-meta">🎒 Inventario Meta</button>
+    <button class="btn lobby-action" id="btn-customize">🎨 Personalizar personaje</button>
+    <button class="btn lobby-action" id="btn-skin-lobby">♙ Personalizar skin</button>
+    <button class="btn gold lobby-action" id="btn-armory">⚔ Armería y habilidades</button>
+    <button class="btn gold lobby-action" id="btn-collection-lobby">🏆 Sala de colección</button>
+    <button class="btn lobby-action" id="btn-achievements-lobby">🏆 Logros</button>
+    <button class="btn lobby-action" id="btn-options-lobby">⚙ Opciones</button>
+    <button class="btn danger lobby-action" id="btn-back-menu">← Menú</button>
+    </div>
   </div>
 
   <div class="overlay" id="screen-options">
@@ -196,6 +256,13 @@
       <div class="option-row">
         <label>Volumen: <span id="volVal">70</span>%</label>
         <input type="range" id="optVolume" min="0" max="100" value="70">
+      </div>
+      <div class="option-row">
+        <label>Música de ambiente</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="optMusicOn" data-toggle="music" data-value="on">ON</button>
+          <button class="toggle-btn" id="optMusicOff" data-toggle="music" data-value="off">OFF</button>
+        </div>
       </div>
       <div class="option-row">
         <label>Efectos: <span id="sfxVal">80</span>%</label>
@@ -226,6 +293,7 @@
       <button class="btn small" id="btn-reset-keys">↻ Restaurar teclas</button>
       <button class="btn small" id="btn-reset-pad">🎮 Restaurar mando</button>
       <button class="btn small" id="btn-hud-options">🎛 Personalizar HUD</button>
+      <button class="btn small" id="btn-lobby-layout-options">🧩 Editar lobby</button>
       <button class="btn gold" id="btn-download-apk">📱 Descargar APK</button>
       <button class="btn" id="btn-options-back">← Volver (B)</button>
       <button class="btn danger" id="btn-reset-save">🗑 Borrar progreso</button>
@@ -261,10 +329,20 @@
         <input type="range" id="hudDelay" min="2" max="12" step="1" value="6">
       </div>
     </div>
+    <div class="mobile-hud-editor">
+      <p class="modal-hint">En el celular, activa el editor y arrastra cada elemento como en un shooter. Se guarda por separado para vertical y horizontal.</p>
+      <div class="mobile-hud-editor-controls">
+        <button class="btn small" id="btn-mobile-hud-edit" type="button">✋ Editar HUD móvil</button>
+        <label class="mobile-hud-size">Tamaño: <span id="mobileHudSizeVal">100</span>%
+          <input type="range" id="mobileHudSize" min="60" max="150" value="100">
+        </label>
+      </div>
+    </div>
     <h3 class="sub-title">Elementos visibles</h3>
     <div id="hudElementToggles" class="hud-toggle-grid"></div>
     <div class="options-footer">
       <button class="btn small" id="btn-hud-reset">↻ Restaurar HUD</button>
+      <button class="btn small" id="btn-lobby-layout">🧩 Editar lobby</button>
       <button class="btn" id="btn-hud-back">← Volver (B)</button>
     </div>
   </div>

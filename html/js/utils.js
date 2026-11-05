@@ -93,7 +93,7 @@ const Save = {
       achievements: {},
       upgrades: { atk:0, def:0, maxHp:0, speed:0, crit:0 },
       options: {
-        volume:70, sfx:80, minimap:true, difficulty:'normal',
+        volume:70, sfx:80, music:true, minimap:true, difficulty:'normal',
         hud: {
           scale: 1,
           opacity: 1,
@@ -103,6 +103,16 @@ const Save = {
             hp:true, abilities:true, floor:true, rooms:true, coins:true,
             stats:true, xp:true, consumables:true, minimap:true,
           },
+        },
+        mobileHud: {
+          landscape: {},
+          portrait: {},
+        },
+        lobbyLayouts: {
+          desktop: {},
+          tablet: {},
+          mobileLandscape: {},
+          mobilePortrait: {},
         },
       },
       customization: { sprite:'default', p1:'default', p2:'personaje-1' },
@@ -136,6 +146,18 @@ const Save = {
         upgrades: { ...def.upgrades, ...(d.upgrades||{}) },
         options:  {
           ...def.options, ...savedOptions,
+          mobileHud: {
+            ...def.options.mobileHud, ...(savedOptions.mobileHud || {}),
+            landscape: { ...def.options.mobileHud.landscape, ...(savedOptions.mobileHud?.landscape || {}) },
+            portrait: { ...def.options.mobileHud.portrait, ...(savedOptions.mobileHud?.portrait || {}) },
+          },
+          lobbyLayouts: {
+            ...def.options.lobbyLayouts, ...(savedOptions.lobbyLayouts || {}),
+            desktop: { ...def.options.lobbyLayouts.desktop, ...(savedOptions.lobbyLayouts?.desktop || {}) },
+            tablet: { ...def.options.lobbyLayouts.tablet, ...(savedOptions.lobbyLayouts?.tablet || {}) },
+            mobileLandscape: { ...def.options.lobbyLayouts.mobileLandscape, ...(savedOptions.lobbyLayouts?.mobileLandscape || {}) },
+            mobilePortrait: { ...def.options.lobbyLayouts.mobilePortrait, ...(savedOptions.lobbyLayouts?.mobilePortrait || {}) },
+          },
           hud: {
             ...def.options.hud, ...savedHud,
             show: { ...def.options.hud.show, ...(savedHud.show||{}) },

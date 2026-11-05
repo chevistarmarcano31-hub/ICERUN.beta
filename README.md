@@ -63,6 +63,9 @@ npx serve html
 
 Abre la URL indicada. (Con `file://` también funciona, pero sin service worker.)
 
+Si sirves la carpeta raíz del proyecto, `index.html` abrirá automáticamente
+el juego dentro de `html/`, sin mostrar el listado de carpetas.
+
 ## Android
 
 ```bash

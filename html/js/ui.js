@@ -12,6 +12,42 @@ const UI = {
   _rebindHandler: null,
   _hudDim: false,
   _openHudFrom: 'options',
+  _mobileHudEditing: false,
+  _mobileHudSelected: null,
+  _customizationReturn: 'lobby',
+  _lobbyEditing: false,
+  _lobbySelected: null,
+  _lobbyEditReturn: 'hud',
+  LOBBY_TARGETS: [
+    ['lobby-title', 'Título'],
+    ['lobby-stats', 'Estadísticas'],
+    ['btn-new-run', 'Iniciar run'],
+    ['btn-coop-run', 'Cooperativo'],
+    ['btn-survival', 'Supervivencia'],
+    ['btn-endless', 'Endless'],
+    ['btn-shop-perm', 'Tienda'],
+    ['btn-inv-meta', 'Inventario'],
+    ['btn-customize', 'Personalizar personaje'],
+    ['btn-skin-lobby', 'Personalizar skin'],
+    ['btn-armory', 'Armería'],
+    ['btn-collection-lobby', 'Colección'],
+    ['btn-achievements-lobby', 'Logros'],
+    ['btn-options-lobby', 'Opciones'],
+    ['btn-back-menu', 'Volver'],
+  ],
+  MOBILE_HUD_TARGETS: [
+    ['hud-hp', 'Vida'],
+    ['abilityBar', 'Habilidades'],
+    ['hud-top-center', 'Piso / jefe'],
+    ['hud-rooms', 'Salas'],
+    ['hud-coins', 'Monedas'],
+    ['hud-stats', 'Estadísticas'],
+    ['hud-xp', 'Nivel / XP'],
+    ['consumableBar', 'Consumibles'],
+    ['minimap', 'Minimapa'],
+    ['touchJoystick', 'Joystick'],
+    ['touchActions', 'Acciones táctiles'],
+  ],
 
   HUD_ELEMENTS: [
     ['hp',          'HP / vida'],
@@ -50,6 +86,7 @@ const UI = {
       gameover:      document.getElementById('screen-gameover'),
       invModal:      document.getElementById('screen-inventory-modal'),
       customize:     document.getElementById('screen-customize'),
+      armory:        document.getElementById('screen-armory'),
     };
 
     const bind = (id, fn) => {
@@ -62,6 +99,8 @@ const UI = {
     bind('btn-options', () => this.showOptions('menu'));
     bind('btn-stats',   () => { this.refreshStats(); this.show('stats'); });
     bind('btn-achievements', () => { this.refreshAchievements(); this.show('achievements'); });
+    bind('btn-collection-menu', () => { this._lastScreen = 'menu'; this.show('armory'); });
+    bind('btn-skin-menu', () => { this._customizationReturn = 'menu'; this.openCustomization(false); });
 
     bind('btn-new-run',    () => Game.startRun(false, false));
     bind('btn-coop-run',   () => this.startCoopCharacterSelection());
@@ -69,15 +108,29 @@ const UI = {
     bind('btn-endless',    () => { if (save.bestFloor >= CFG.ENDLESS_UNLOCK) Game.startRun(true); });
     bind('btn-shop-perm',  () => { this.refreshPermShop(); this.show('shopPerm'); });
     bind('btn-inv-meta',   () => { this.refreshInvMeta(); this.show('invMeta'); });
-    bind('btn-customize',  () => this.openCustomization(false));
+    bind('btn-customize',  () => { this._customizationReturn = 'lobby'; this.openCustomization(false); });
+    bind('btn-skin-lobby', () => { this._customizationReturn = 'lobby'; this.openCustomization(false); });
+    bind('btn-armory', () => { this._lastScreen = 'lobby'; this.show('armory'); });
+    bind('btn-collection-lobby', () => { this._lastScreen = 'lobby'; this.show('armory'); });
+    bind('btn-armory-back', () => this.show(this._lastScreen === 'menu' ? 'menu' : 'lobby'));
+    bind('btn-armory-skin', () => { this._customizationReturn = 'armory'; this.openCustomization(false); });
+    bind('btn-armory-equip', () => {
+      const selected = document.querySelector('.armory-weapon.selected');
+      this.toast(`${selected?.dataset.weapon || 'Arma'} equipada`, 'gold');
+    });
+    document.querySelectorAll('.armory-weapon').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.armory-weapon').forEach(item => item.classList.remove('selected'));
+        button.classList.add('selected');
+      });
+    });
     bind('btn-select-p1', () => this.selectCustomizationPlayer('p1'));
     bind('btn-select-p2', () => this.selectCustomizationPlayer('p2'));
     bind('btn-start-coop-selected', () => {
       Game.startRun(false, true);
     });
     bind('btn-customize-back', () => {
-      this.openCustomization(false);
-      this.show('lobby');
+      this.show(this._customizationReturn);
     });
     bind('btn-achievements-lobby', () => { this.refreshAchievements(); this.show('achievements'); });
     bind('btn-options-lobby',() => this.showOptions('lobby'));
@@ -90,9 +143,12 @@ const UI = {
     bind('btn-reset-keys',   () => this.resetKeys());
     bind('btn-reset-pad',    () => this.resetGamepad());
     bind('btn-hud-options',  () => this.openHud('options'));
+    bind('btn-lobby-layout', () => this.openLobbyEditor());
+    bind('btn-lobby-layout-options', () => this.openLobbyEditor());
     bind('btn-hud-pause',    () => this.openHud('pause'));
     bind('btn-hud-back',     () => this.closeHud());
     bind('btn-hud-reset',    () => this.resetHud());
+    bind('btn-mobile-hud-edit', () => this.toggleMobileHudEditor());
     bind('btn-reset-save',   () => {
       if (confirm('¿Borrar TODO el progreso?')) {
         Save.clear(); save = Save.load();
@@ -125,6 +181,7 @@ const UI = {
       volEl.addEventListener('input', e => {
         save.options.volume = +e.target.value;
         document.getElementById('volVal').textContent = e.target.value;
+        Audio2.updateMusicVolume();
         Save.write();
       });
     }
@@ -149,6 +206,17 @@ const UI = {
       });
     });
 
+    document.querySelectorAll('[data-toggle="music"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-toggle="music"]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        save.options.music = btn.dataset.value === 'on';
+        Audio2.setMusicEnabled(save.options.music);
+        Save.write();
+      });
+    });
+    document.querySelector(`[data-toggle="music"][data-value="${save.options.music ? 'on' : 'off'}"]`)?.classList.add('active');
+
     document.querySelectorAll('[data-diff]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('[data-diff]').forEach(b => b.classList.remove('active'));
@@ -164,6 +232,9 @@ const UI = {
       document.getElementById('hudScaleVal').textContent = e.target.value;
       Save.write();
       this.applyHudSettings();
+      window.addEventListener('resize', () => {
+        if (!this._lobbyEditing) this.applyLobbyLayout();
+      });
     });
     const hudOpacity = document.getElementById('hudOpacity');
     if (hudOpacity) hudOpacity.addEventListener('input', e => {
@@ -178,6 +249,13 @@ const UI = {
       document.getElementById('hudDelayVal').textContent = e.target.value;
       Save.write();
       this.updateHudDim(performance.now());
+    });
+    const mobileHudSize = document.getElementById('mobileHudSize');
+    if (mobileHudSize) mobileHudSize.addEventListener('input', e => {
+      const value = Number(e.target.value);
+      const label = document.getElementById('mobileHudSizeVal');
+      if (label) label.textContent = value;
+      this.setMobileHudScale(value / 100);
     });
     document.querySelectorAll('[data-hud-autohide]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -230,9 +308,315 @@ const UI = {
   /* ================================================================
      HUD PERSONALIZABLE
      ================================================================ */
+  mobileHudOrientation() {
+    return window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait';
+  },
+
+  mobileHudLayout() {
+    if (!save.options.mobileHud) {
+      save.options.mobileHud = { landscape: {}, portrait: {} };
+    }
+    const orientation = this.mobileHudOrientation();
+    return save.options.mobileHud[orientation] || (save.options.mobileHud[orientation] = {});
+  },
+
+  lobbyProfile() {
+    const width = window.innerWidth;
+    if (width <= 760) {
+      return this.mobileHudOrientation() === 'landscape' ? 'mobileLandscape' : 'mobilePortrait';
+    }
+    return width <= 1100 ? 'tablet' : 'desktop';
+  },
+
+  lobbyLayout() {
+    if (!save.options.lobbyLayouts) {
+      save.options.lobbyLayouts = {
+        desktop: {}, tablet: {}, mobileLandscape: {}, mobilePortrait: {},
+      };
+    }
+    const profile = this.lobbyProfile();
+    return save.options.lobbyLayouts[profile] || (save.options.lobbyLayouts[profile] = {});
+  },
+
+  applyLobbyLayout() {
+    const layout = this.lobbyLayout();
+    for (const [id] of this.LOBBY_TARGETS) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const item = layout[id];
+      if (!item) {
+        el.style.left = '';
+        el.style.top = '';
+        el.style.right = '';
+        el.style.bottom = '';
+        el.style.transform = '';
+        el.style.removeProperty('--lobby-scale');
+        continue;
+      }
+      el.style.left = `${item.x}%`;
+      el.style.top = `${item.y}%`;
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.setProperty('--lobby-scale', item.scale || 1);
+      el.style.transform = `scale(${item.scale || 1})`;
+    }
+  },
+
+  lobbyProfileLabel() {
+    return {
+      desktop: 'ESCRITORIO',
+      tablet: 'TABLET',
+      mobileLandscape: 'MÓVIL HORIZONTAL',
+      mobilePortrait: 'MÓVIL VERTICAL',
+    }[this.lobbyProfile()];
+  },
+
+  openLobbyEditor() {
+    this._lobbyEditReturn = this.current === 'hud' ? 'hud' : 'options';
+    this._lobbyEditing = true;
+    this.show('lobby');
+    const lobby = this.screens.lobby;
+    if (lobby) lobby.classList.add('lobby-editing');
+    this.installLobbyDraggers();
+    this.createLobbyToolbar();
+    this.toast(`Editando lobby · ${this.lobbyProfileLabel()}`, 'gold');
+  },
+
+  createLobbyToolbar() {
+    const app = document.getElementById('app');
+    if (!app || document.getElementById('lobbyLayoutToolbar')) return;
+    const toolbar = document.createElement('div');
+    toolbar.id = 'lobbyLayoutToolbar';
+    toolbar.className = 'mobile-hud-toolbar lobby-layout-toolbar';
+    toolbar.innerHTML = `
+      <strong>EDITAR LOBBY</strong>
+      <span>${this.lobbyProfileLabel()}</span>
+      <label>Tamaño <input type="range" min="60" max="150" value="100" id="lobbyToolbarSize"></label>
+      <button type="button" id="lobbyLayoutReset">↻ Restablecer</button>
+      <button type="button" id="lobbyLayoutDone">✓ Guardar</button>
+    `;
+    app.appendChild(toolbar);
+    toolbar.querySelector('#lobbyToolbarSize').addEventListener('input', event => {
+      this.setLobbyScale(Number(event.target.value) / 100);
+    });
+    toolbar.querySelector('#lobbyLayoutReset').addEventListener('click', () => this.resetLobbyLayout());
+    toolbar.querySelector('#lobbyLayoutDone').addEventListener('click', () => this.closeLobbyEditor());
+  },
+
+  closeLobbyEditor() {
+    this._lobbyEditing = false;
+    this._lobbySelected = null;
+    this.screens.lobby?.classList.remove('lobby-editing');
+    document.getElementById('lobbyLayoutToolbar')?.remove();
+    Save.write();
+    this.show(this._lobbyEditReturn);
+    this.toast(`Lobby guardado · ${this.lobbyProfileLabel()}`, 'gold');
+  },
+
+  resetLobbyLayout() {
+    const profile = this.lobbyProfile();
+    save.options.lobbyLayouts[profile] = {};
+    this.applyLobbyLayout();
+    Save.write();
+    this.toast(`Perfil ${this.lobbyProfileLabel()} restablecido`, 'gold');
+  },
+
+  selectLobbyElement(id) {
+    this._lobbySelected = id;
+    const item = this.lobbyLayout()[id];
+    const size = document.getElementById('lobbyToolbarSize');
+    if (size) size.value = Math.round((item?.scale || 1) * 100);
+    document.querySelectorAll('[data-lobby-target]').forEach(el => {
+      el.classList.toggle('lobby-edit-selected', el.dataset.lobbyTarget === id);
+    });
+  },
+
+  setLobbyScale(scale) {
+    const id = this._lobbySelected;
+    if (!id) return;
+    const layout = this.lobbyLayout();
+    if (!layout[id]) {
+      const el = document.getElementById(id);
+      const rect = el.getBoundingClientRect();
+      const appRect = document.getElementById('app').getBoundingClientRect();
+      layout[id] = {
+        x: ((rect.left - appRect.left) / appRect.width) * 100,
+        y: ((rect.top - appRect.top) / appRect.height) * 100,
+        scale: 1,
+      };
+    }
+    layout[id].scale = scale;
+    const el = document.getElementById(id);
+    if (el) el.style.transform = `scale(${scale})`;
+    Save.write();
+  },
+
+  installLobbyDraggers() {
+    const app = document.getElementById('app');
+    if (!app || app.dataset.lobbyDraggers === 'true') return;
+    app.dataset.lobbyDraggers = 'true';
+    for (const [id, label] of this.LOBBY_TARGETS) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.dataset.lobbyTarget = id;
+      el.title = `Arrastrar: ${label}`;
+      el.addEventListener('pointerdown', event => {
+        if (!this._lobbyEditing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        this.selectLobbyElement(id);
+        const appRect = app.getBoundingClientRect();
+        const rect = el.getBoundingClientRect();
+        const offsetX = event.clientX - rect.left;
+        const offsetY = event.clientY - rect.top;
+        const move = moveEvent => {
+          const layout = this.lobbyLayout();
+          const x = Math.max(0, Math.min(100, ((moveEvent.clientX - appRect.left - offsetX) / appRect.width) * 100));
+          const y = Math.max(0, Math.min(100, ((moveEvent.clientY - appRect.top - offsetY) / appRect.height) * 100));
+          if (!layout[id]) layout[id] = { x, y, scale: 1 };
+          layout[id].x = x;
+          layout[id].y = y;
+          el.style.left = `${x}%`;
+          el.style.top = `${y}%`;
+          el.style.right = 'auto';
+          el.style.bottom = 'auto';
+        };
+        const stop = () => {
+          document.removeEventListener('pointermove', move);
+          document.removeEventListener('pointerup', stop);
+          Save.write();
+        };
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', stop, { once: true });
+      });
+    }
+  },
+
+  applyMobileHudPositions() {
+    const layout = this.mobileHudLayout();
+    for (const [id] of this.MOBILE_HUD_TARGETS) {
+      const el = document.getElementById(id);
+      const item = layout[id];
+      if (!el || !item) continue;
+      el.style.left = `${item.x}%`;
+      el.style.top = `${item.y}%`;
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      if (item.scale) {
+        el.style.setProperty('--mobile-hud-scale', item.scale);
+        el.style.transform = id === 'hud-top-center'
+          ? `translateX(-50%) scale(${item.scale})`
+          : `scale(${item.scale})`;
+      }
+    }
+  },
+
+  toggleMobileHudEditor() {
+    this._mobileHudEditing = !this._mobileHudEditing;
+    const app = document.getElementById('app');
+    const button = document.getElementById('btn-mobile-hud-edit');
+    if (app) app.classList.toggle('mobile-hud-editing', this._mobileHudEditing);
+    if (button) button.textContent = this._mobileHudEditing ? '✓ Terminar edición' : '✋ Editar HUD móvil';
+    if (this._mobileHudEditing) {
+      this.installMobileHudDraggers();
+      this.createMobileHudToolbar();
+      this.show('battle');
+      this.toast('Arrastra los elementos para colocarlos', 'gold');
+    } else {
+      document.getElementById('mobileHudToolbar')?.remove();
+      Save.write();
+      this.show('hud');
+      this.toast('HUD móvil guardado', 'gold');
+    }
+  },
+
+  createMobileHudToolbar() {
+    const app = document.getElementById('app');
+    if (!app || document.getElementById('mobileHudToolbar')) return;
+    const toolbar = document.createElement('div');
+    toolbar.id = 'mobileHudToolbar';
+    toolbar.className = 'mobile-hud-toolbar';
+    toolbar.innerHTML = `
+      <strong>EDITAR HUD</strong>
+      <label>Tamaño <input type="range" min="60" max="150" value="100" id="mobileHudToolbarSize"></label>
+      <button type="button" id="mobileHudToolbarDone">✓ Guardar</button>
+    `;
+    app.appendChild(toolbar);
+    toolbar.querySelector('#mobileHudToolbarSize').addEventListener('input', event => {
+      this.setMobileHudScale(Number(event.target.value) / 100);
+    });
+    toolbar.querySelector('#mobileHudToolbarDone').addEventListener('click', () => this.toggleMobileHudEditor());
+  },
+
+  selectMobileHudElement(id) {
+    this._mobileHudSelected = id;
+    const item = this.mobileHudLayout()[id];
+    const size = document.getElementById('mobileHudSize');
+    const label = document.getElementById('mobileHudSizeVal');
+    const value = Math.round((item?.scale || 1) * 100);
+    if (size) size.value = value;
+    if (label) label.textContent = value;
+    document.querySelectorAll('[data-mobile-hud-target]').forEach(el => {
+      el.classList.toggle('mobile-hud-selected', el.dataset.mobileHudTarget === id);
+    });
+  },
+
+  setMobileHudScale(scale) {
+    const id = this._mobileHudSelected;
+    if (!id) return;
+    const layout = this.mobileHudLayout();
+    if (!layout[id]) layout[id] = { x: 0, y: 0, scale: 1 };
+    layout[id].scale = scale;
+    const el = document.getElementById(id);
+    if (el) el.style.setProperty('--mobile-hud-scale', scale);
+    Save.write();
+  },
+
+  installMobileHudDraggers() {
+    const app = document.getElementById('app');
+    if (!app || app.dataset.mobileHudDraggers === 'true') return;
+    app.dataset.mobileHudDraggers = 'true';
+    for (const [id, label] of this.MOBILE_HUD_TARGETS) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.dataset.mobileHudTarget = id;
+      el.title = `Arrastrar: ${label}`;
+      el.addEventListener('pointerdown', event => {
+        if (!this._mobileHudEditing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        this.selectMobileHudElement(id);
+        const appRect = app.getBoundingClientRect();
+        const rect = el.getBoundingClientRect();
+        const offsetX = event.clientX - rect.left;
+        const offsetY = event.clientY - rect.top;
+        const move = moveEvent => {
+          const layout = this.mobileHudLayout();
+          const x = Math.max(0, Math.min(100, ((moveEvent.clientX - appRect.left - offsetX) / appRect.width) * 100));
+          const y = Math.max(0, Math.min(100, ((moveEvent.clientY - appRect.top - offsetY) / appRect.height) * 100));
+          if (!layout[id]) layout[id] = { x, y, scale: 1 };
+          layout[id].x = x;
+          layout[id].y = y;
+          el.style.left = `${x}%`;
+          el.style.top = `${y}%`;
+          el.style.right = 'auto';
+          el.style.bottom = 'auto';
+        };
+        const stop = () => {
+          document.removeEventListener('pointermove', move);
+          document.removeEventListener('pointerup', stop);
+          Save.write();
+        };
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', stop, { once: true });
+      });
+    }
+  },
+
   openHud(from = 'options') {
     this._openHudFrom = from;
     this.refreshHudUI();
+    this.applyMobileHudPositions();
     this.show('hud');
   },
 
@@ -321,6 +705,9 @@ const UI = {
 
   resetHud() {
     save.options.hud = Save.defaults().options.hud;
+    save.options.mobileHud = { landscape: {}, portrait: {} };
+    this._mobileHudEditing = false;
+    document.getElementById('app')?.classList.remove('mobile-hud-editing');
     this.applyHudSettings();
     Save.write();
     this.refreshHudUI();
@@ -356,7 +743,7 @@ const UI = {
     if (name === 'battle') { this.current = 'battle'; this._menuLastActiveOverlay = null; return; }
     const el = this.screens[name];
     if (el) { el.classList.add('active'); this.current = name; }
-    if (name === 'lobby')         this.refreshLobby();
+    if (name === 'lobby')         { this.refreshLobby(); this.applyLobbyLayout(); }
     if (name === 'stats')         this.refreshStats();
     if (name === 'achievements')  this.refreshAchievements();
     if (name === 'shopPerm')      this.refreshPermShop();
@@ -427,6 +814,8 @@ const UI = {
       return true;
     }
     const backMap = {
+      'armory':        this._lastScreen === 'menu' ? 'menu' : 'lobby',
+      'customize':     this._customizationReturn,
       'stats':        'menu',
       'achievements': this._lastScreen === 'lobby' ? 'lobby' : 'menu',
       'shopPerm':     'lobby',
@@ -1571,7 +1960,14 @@ window.addEventListener('load', () => {
   Game.init();
   UI.init();
   Gamepad.init();
-  document.body.addEventListener('click', () => Audio2.init(), { once: true });
+  UI.applyMobileHudPositions();
+  window.addEventListener('resize', () => UI.applyMobileHudPositions());
+  Audio2.musicEnabled = save.options.music !== false;
+  Audio2.startMusic();
+  const unlockAudio = () => Audio2.init();
+  document.addEventListener('click', unlockAudio, true);
+  document.addEventListener('pointerdown', unlockAudio, true);
+  document.addEventListener('keydown', unlockAudio, true);
   setInterval(() => {
     if (Game.battleActive && !Game.paused) UI.updateAbilityCooldowns();
     if (UI.current === 'options') UI._updateGamepadStatus();

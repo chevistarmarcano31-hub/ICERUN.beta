@@ -1,0 +1,80 @@
+.mobile-hud-editor {
+  width: 100%;
+  max-width: 720px;
+  margin-bottom: 12px;
+}
+.mobile-hud-editor-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.mobile-hud-editor .btn {
+  margin: 0;
+}
+.mobile-hud-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ice-neon);
+  font-size: 11px;
+}
+.mobile-hud-size input {
+  width: 130px;
+  accent-color: var(--ice-cyan);
+}
+.mobile-hud-editing [data-mobile-hud-target] {
+  pointer-events: auto !important;
+  cursor: move !important;
+  outline: 2px dashed rgba(255,213,79,0.75);
+  outline-offset: 4px;
+  z-index: 80 !important;
+}
+.mobile-hud-editing [data-mobile-hud-target].mobile-hud-selected {
+  outline-color: var(--ice-gold);
+  box-shadow: 0 0 22px rgba(255,213,79,0.8);
+}
+.mobile-hud-editing #game {
+  pointer-events: none;
+}
+.mobile-hud-editing #touchControls {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.mobile-hud-toolbar {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  color: var(--ice-white);
+  background: rgba(4,13,26,0.94);
+  border: 1px solid var(--ice-gold);
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(255,213,79,0.35);
+  font: 10px 'Courier New', monospace;
+}
+.mobile-hud-toolbar strong { color: var(--ice-gold); }
+.mobile-hud-toolbar input { width: 90px; accent-color: var(--ice-gold); }
+.mobile-hud-toolbar button {
+  padding: 6px 9px;
+  color: var(--ice-white);
+  background: rgba(255,213,79,0.15);
+  border: 1px solid var(--ice-gold);
+  border-radius: 4px;
+  font: inherit;
+}
+@media (max-width: 760px) {
+  .mobile-hud-editor-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .mobile-hud-size {
+    justify-content: center;
+  }
+}

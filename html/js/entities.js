@@ -416,7 +416,10 @@ class Player {
     }
 
     if (Input.keys[kb.dash] || (this.controlId === 'p1' && Input.touchButtons.dash)) this.tryDash(now);
-    if (Input.keys[kb.block] || (this.controlId === 'p1' && Input.touchButtons.block)) this.tryBlock(now);
+    if (Input.consumePress(kb.block) || (this.controlId === 'p1' && Input.touchButtons.block)) {
+      this.tryBlock(now);
+      if (this.controlId === 'p1') Input.touchButtons.block = false;
+    }
     if (Input.keys[kb.melee] || (this.controlId === 'p1' && Input.touchButtons.melee)) this.tryMelee(now);
     if (Input.keys[kb.long] || (this.controlId === 'p1' && Input.touchButtons.long)) this.tryLong(now);
     if (Input.keys[kb.basic] || (this.controlId === 'p1' && (Input.mouseDown || Input.touchButtons.basic))) {

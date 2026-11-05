@@ -1,8 +1,69 @@
 const Audio2 = {
   ctx: null,
+  music: null,
+  musicTrack: 0,
+  musicEnabled: true,
+  musicTracks: [
+    'audio/musica-de-fondo-1.mp3',
+    'audio/musica-de-fondo-2.mp3',
+    'audio/musica-de-fondo-3.mp3',
+  ],
   init() {
-    if (this.ctx) return;
-    try { this.ctx = new (window.AudioContext||window.webkitAudioContext)(); } catch {}
+    if (!this.ctx) {
+      try { this.ctx = new (window.AudioContext||window.webkitAudioContext)(); } catch {}
+    }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    this.startMusic();
+  },
+  startMusic() {
+    if (!this.music) {
+      this.music = new Audio();
+      this.music.preload = 'auto';
+      this.music.loop = false;
+      this.music.autoplay = false;
+      this.music.dataset.track = '-1';
+      this.music.addEventListener('canplay', () => this.playMusic());
+      this.music.addEventListener('error', () => {
+        console.error('No se pudo cargar la música de ambiente:', this.music.src);
+      });
+      this.music.addEventListener('ended', () => {
+        this.musicTrack = (this.musicTrack + 1) % this.musicTracks.length;
+        this.music.src = this.musicTracks[this.musicTrack];
+        this.music.load();
+        this.playMusic();
+      });
+    }
+    this.music.volume = this.musicEnabled ? (save.options.volume / 100) * 0.35 : 0;
+    if (this.musicEnabled && this.music.dataset.track !== String(this.musicTrack)) {
+      this.music.src = this.musicTracks[this.musicTrack];
+      this.music.dataset.track = String(this.musicTrack);
+      this.music.load();
+    }
+    this.playMusic();
+  },
+  playMusic() {
+    if (!this.music || !this.musicEnabled || !this.music.paused) return;
+    this.music.play().catch(error => {
+      if (error.name !== 'NotAllowedError') {
+        console.error('No se pudo reproducir la música de ambiente:', error);
+      }
+    });
+  },
+  setMusicEnabled(enabled) {
+    this.musicEnabled = enabled;
+    if (!this.music) {
+      this.startMusic();
+      return;
+    }
+    this.music.volume = enabled ? (save.options.volume / 100) * 0.35 : 0;
+    if (enabled) {
+      this.startMusic();
+    } else {
+      this.music.pause();
+    }
+  },
+  updateMusicVolume() {
+    if (this.music) this.music.volume = this.musicEnabled ? (save.options.volume / 100) * 0.35 : 0;
   },
   beep(freq=600, dur=0.05, vol=0.15, type='square') {
     if (!this.ctx) return;
@@ -38,6 +99,7 @@ const Audio2 = {
 /* ===== input.js ===== */
 const Input = {
   keys: {},
+  pressed: {},
   mouseDown: false,
   _mx: undefined,
   _my: undefined,
@@ -48,6 +110,7 @@ const Input = {
   init() {
     window.addEventListener('keydown', e => {
       const k = e.key.toLowerCase();
+      if (!this.keys[k]) this.pressed[k] = true;
       this.keys[k] = true;
       if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
       if (k === save.keybinds.pause && Game.running) Game.togglePause();
@@ -65,7 +128,9 @@ const Input = {
       }
     });
     window.addEventListener('keyup', e => {
-      this.keys[e.key.toLowerCase()] = false;
+      const k = e.key.toLowerCase();
+      this.keys[k] = false;
+      this.pressed[k] = false;
     });
     window.addEventListener('mousedown', e => {
       if (e.button === 0) { this.mouseDown = true; Audio2.init(); }
@@ -76,8 +141,14 @@ const Input = {
     window.addEventListener('blur', () => {
       this.mouseDown = false;
       this.keys = {};
+      this.pressed = {};
     });
     this.initTouchControls();
+  },
+  consumePress(key) {
+    if (!this.pressed[key]) return false;
+    this.pressed[key] = false;
+    return true;
   },
 
   initTouchControls() {

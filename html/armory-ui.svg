@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Armería y habilidades</title>
+  <desc id="desc">Interfaz futurista verde para personalización de armas, habilidades y skin.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1">
+      <stop stop-color="#06130f"/>
+      <stop offset=".5" stop-color="#102c22"/>
+      <stop offset="1" stop-color="#030806"/>
+    </linearGradient>
+    <radialGradient id="mist" cx=".5" cy=".45" r=".7">
+      <stop stop-color="#5a9c70" stop-opacity=".32"/>
+      <stop offset=".55" stop-color="#183c2b" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#020604" stop-opacity=".85"/>
+    </radialGradient>
+    <linearGradient id="panel" y2="1">
+      <stop stop-color="#1b4b37" stop-opacity=".82"/>
+      <stop offset="1" stop-color="#07150f" stop-opacity=".94"/>
+    </linearGradient>
+    <linearGradient id="yellow" y2="1">
+      <stop stop-color="#fff28a"/>
+      <stop offset=".45" stop-color="#ffd33d"/>
+      <stop offset="1" stop-color="#b87508"/>
+    </linearGradient>
+    <filter id="greenGlow">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow"><feGaussianBlur stdDeviation="18"/></filter>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#7ee0a4" stroke-opacity=".08"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#mist)"/>
+  <ellipse cx="1060" cy="420" rx="480" ry="230" fill="#6ed693" opacity=".12" filter="url(#softGlow)"/>
+  <ellipse cx="270" cy="730" rx="390" ry="170" fill="#80d89e" opacity=".1" filter="url(#softGlow)"/>
+  <g fill="#b9ffd0">
+    <circle cx="310" cy="170" r="3" opacity=".8"/><circle cx="580" cy="122" r="2" opacity=".55"/>
+    <circle cx="1195" cy="190" r="3" opacity=".7"/><circle cx="1400" cy="610" r="2" opacity=".8"/>
+    <circle cx="865" cy="700" r="3" opacity=".55"/><circle cx="145" cy="440" r="2" opacity=".6"/>
+  </g>
+  <rect x="34" y="34" width="1532" height="832" rx="18" fill="url(#grid)" stroke="#77d99b" stroke-opacity=".35" stroke-width="2"/>
+
+  <text x="800" y="80" text-anchor="middle" fill="#d9ffe3" font-family="Trebuchet MS, sans-serif" font-size="42" font-weight="bold" letter-spacing="8" filter="url(#greenGlow)">ARMERÍA Y HABILIDADES</text>
+  <text x="800" y="111" text-anchor="middle" fill="#82e6a3" font-family="monospace" font-size="13" letter-spacing="4">ARSENAL TÁCTICO // CONFIGURACIÓN DE COMBATE</text>
+
+  <g font-family="Trebuchet MS, sans-serif">
+    <rect x="65" y="155" width="240" height="540" rx="12" fill="#06130e" fill-opacity=".85" stroke="#4aa66e" stroke-width="2"/>
+    <text x="95" y="200" fill="#78dc98" font-size="14" letter-spacing="3">NAVEGACIÓN</text>
+    <path d="M95 215h180" stroke="#4aa66e" opacity=".5"/>
+    <g font-size="16" font-weight="bold" letter-spacing="1">
+      <rect x="82" y="250" width="206" height="70" rx="8" fill="#245d42" stroke="#a9ffbf" stroke-width="2"/>
+      <text x="108" y="278" fill="#d9ffe3" font-size="25">♜</text><text x="148" y="280" fill="#effff2">SALA DE</text><text x="148" y="301" fill="#effff2">COLECCIÓN</text>
+      <rect x="82" y="340" width="206" height="70" rx="8" fill="#102c20" stroke="#4d986a"/>
+      <text x="108" y="382" fill="#9cf2b6" font-size="25">♙</text><text x="148" y="371" fill="#bcefc9">PERSONALIZAR</text><text x="148" y="393" fill="#bcefc9">SKIN</text>
+    </g>
+    <text x="95" y="635" fill="#6da985" font-size="12" letter-spacing="2">SELECCIÓN ACTUAL</text>
+    <text x="95" y="664" fill="#d3ffdd" font-size="17">OPERATIVO // 07</text>
+  </g>
+
+  <g font-family="Trebuchet MS, sans-serif">
+    <rect x="345" y="155" width="760" height="540" rx="12" fill="#06130e" fill-opacity=".78" stroke="#4aa66e" stroke-width="2"/>
+    <text x="380" y="200" fill="#bdfbc9" font-size="22" font-weight="bold" letter-spacing="3">ARMERÍA</text>
+    <text x="1045" y="200" text-anchor="end" fill="#71c98f" font-size="13" letter-spacing="2">4 / 6 EQUIPADAS</text>
+    <path d="M380 220h690" stroke="#4aa66e" opacity=".55"/>
+    <g>
+      <rect x="380" y="250" width="330" height="175" rx="10" fill="url(#panel)" stroke="#a4f5b5" stroke-width="2"/>
+      <text x="405" y="284" fill="#d8ffe1" font-size="18" font-weight="bold">VIGILANTE</text><text x="405" y="307" fill="#81d69a" font-size="13">RIFLE DE FRANCOTIRADOR</text>
+      <path d="M425 365h190l35 12-35 12H425l-35-12zM465 348h100v8H465zM535 389h20v19h-20z" fill="#d4ffe0"/><circle cx="645" cy="377" r="14" fill="none" stroke="#ffd84b" stroke-width="3"/><path d="M645 360v34M628 377h34" stroke="#ffd84b" stroke-width="2"/>
+      <text x="655" y="407" fill="#ffd84b" font-size="12">RIFLE</text>
+      <rect x="730" y="250" width="330" height="175" rx="10" fill="url(#panel)" stroke="#4aa66e"/>
+      <text x="755" y="284" fill="#d8ffe1" font-size="18" font-weight="bold">ROMPEHIELO</text><text x="755" y="307" fill="#81d69a" font-size="13">ESCOPETA TÁCTICA</text>
+      <path d="M775 368h190v17H775zM825 350h115v12H825zM800 385h32v24h-32zM930 385h25v24h-25z" fill="#c6fbd4"/><circle cx="990" cy="377" r="11" fill="none" stroke="#ffd84b" stroke-width="3"/>
+      <text x="1000" y="407" fill="#ffd84b" font-size="12">PESADA</text>
+      <rect x="380" y="450" width="330" height="175" rx="10" fill="url(#panel)" stroke="#4aa66e"/>
+      <text x="405" y="484" fill="#d8ffe1" font-size="18" font-weight="bold">CENTINELA</text><text x="405" y="507" fill="#81d69a" font-size="13">PISTOLA DE PRECISIÓN</text>
+      <path d="M450 567h150l25 10-25 10H450l-25-10zM480 550h70v10h-70zM515 587h18v23h-18z" fill="#d4ffe0"/><circle cx="625" cy="577" r="10" fill="#ffd84b"/>
+      <text x="630" y="607" fill="#ffd84b" font-size="12">PISTOLA</text>
+      <rect x="730" y="450" width="330" height="175" rx="10" fill="url(#panel)" stroke="#4aa66e"/>
+      <text x="755" y="484" fill="#d8ffe1" font-size="18" font-weight="bold">AVISPÓN</text><text x="755" y="507" fill="#81d69a" font-size="13">SUBFUSIL AUTOMÁTICO</text>
+      <path d="M785 568h185v16H785zM820 550h105v11H820zM810 584h22v26h-22zM930 584h24v26h-24z" fill="#d4ffe0"/><path d="M985 560l12 16-12 16-12-16z" fill="#ffd84b"/>
+      <text x="1000" y="607" fill="#ffd84b" font-size="12">RÁFAGA</text>
+    </g>
+  </g>
+
+  <g font-family="Trebuchet MS, sans-serif">
+    <rect x="345" y="730" width="760" height="105" rx="12" fill="#06130e" fill-opacity=".9" stroke="#4aa66e" stroke-width="2"/>
+    <text x="380" y="765" fill="#bdfbc9" font-size="15" letter-spacing="2">MEJORA DEL ARMA SELECCIONADA</text>
+    <text x="380" y="804" fill="#ffd84b" font-size="18" font-weight="bold">NIVEL 4/4</text>
+    <rect x="510" y="790" width="220" height="14" rx="7" fill="#173526"/><rect x="510" y="790" width="220" height="14" rx="7" fill="#8df3a8"/>
+    <rect x="770" y="755" width="65" height="65" rx="10" fill="#173c2a" stroke="#b5ffc5" stroke-width="2"/><text x="803" y="798" text-anchor="middle" fill="#d9ffe3" font-size="32">♡</text><text x="803" y="828" text-anchor="middle" fill="#82e6a3" font-size="10">PASIVA</text>
+    <rect x="855" y="755" width="65" height="65" rx="10" fill="#173c2a" stroke="#ffd84b" stroke-width="2"/><text x="888" y="800" text-anchor="middle" fill="#ffd84b" font-size="34">ϟ</text><text x="888" y="828" text-anchor="middle" fill="#ffd84b" font-size="10">ACTIVA</text>
+  </g>
+
+  <g font-family="Trebuchet MS, sans-serif">
+    <rect x="1140" y="155" width="395" height="540" rx="12" fill="#06130e" fill-opacity=".82" stroke="#4aa66e" stroke-width="2"/>
+    <text x="1175" y="200" fill="#bdfbc9" font-size="21" font-weight="bold" letter-spacing="3">PERSONAJE</text>
+    <text x="1175" y="226" fill="#81d69a" font-size="12" letter-spacing="2">ESTÉTICO // SIN CAMBIO DE ESTADÍSTICAS</text>
+    <path d="M1175 245h325" stroke="#4aa66e" opacity=".55"/>
+    <circle cx="1337" cy="350" r="58" fill="#173c2a" stroke="#86eaa2" stroke-width="2"/><circle cx="1337" cy="335" r="20" fill="#bcffd0"/><path d="M1285 437q52-90 104 0v100h-104z" fill="#bcffd0"/><path d="M1295 458h84M1300 495h75" stroke="#143622" stroke-width="7"/>
+    <text x="1337" y="575" text-anchor="middle" fill="#d8ffe1" font-size="18" font-weight="bold">OPERATIVO // 07</text>
+    <g fill="#173c2a" stroke="#7fe39d"><rect x="1180" y="610" width="90" height="42" rx="7"/><rect x="1283" y="610" width="90" height="42" rx="7"/><rect x="1386" y="610" width="90" height="42" rx="7"/></g>
+    <text x="1225" y="637" text-anchor="middle" fill="#bdfbc9" font-size="13">CAMISA</text><text x="1328" y="637" text-anchor="middle" fill="#bdfbc9" font-size="13">PANTALÓN</text><text x="1431" y="637" text-anchor="middle" fill="#bdfbc9" font-size="13">CASCO</text>
+    <text x="1175" y="680" fill="#7bc892" font-size="24">‹</text><text x="1500" y="680" fill="#7bc892" font-size="24">›</text>
+  </g>
+
+  <rect x="1200" y="748" width="290" height="72" rx="10" fill="url(#yellow)" stroke="#fff4a8" stroke-width="3"/>
+  <text x="1345" y="794" text-anchor="middle" fill="#241900" font-family="Trebuchet MS, sans-serif" font-size="23" font-weight="bold" letter-spacing="4">EQUIPAR</text>
+</svg>
