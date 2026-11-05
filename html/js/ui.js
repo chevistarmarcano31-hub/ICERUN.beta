@@ -18,6 +18,8 @@ const UI = {
   _lobbyEditing: false,
   _lobbySelected: null,
   _lobbyEditReturn: 'hud',
+  _abilityElements: null,
+  _cooldownRenderState: {},
   LOBBY_TARGETS: [
     ['lobby-title', 'Título'],
     ['lobby-stats', 'Estadísticas'],
@@ -1458,9 +1460,21 @@ const UI = {
   },
 
   _updateSlot(slotId, cdId, ready, until, now) {
-    const slot = document.getElementById(slotId);
-    const cd = document.getElementById(cdId);
+    if (!this._abilityElements) this._abilityElements = {};
+    let elements = this._abilityElements[slotId];
+    if (!elements) {
+      elements = {
+        slot: document.getElementById(slotId),
+        cooldown: document.getElementById(cdId),
+      };
+      this._abilityElements[slotId] = elements;
+    }
+    const slot = elements.slot;
+    const cd = elements.cooldown;
     if (!slot || !cd) return;
+    const stateKey = ready ? 'ready' : `${Math.max(0, Math.ceil((until - now) / 100))}`;
+    if (this._cooldownRenderState[slotId] === stateKey) return;
+    this._cooldownRenderState[slotId] = stateKey;
     if (ready) {
       slot.classList.remove('cooling');
       slot.classList.add('ready');

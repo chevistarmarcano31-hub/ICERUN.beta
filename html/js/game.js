@@ -2,6 +2,7 @@ const Game = {
   canvas: null, ctx: null, minimap: null, minimapCtx: null,
   backgroundCanvas: null,
   minimapNextRender: 0,
+  minimapOpacityNextUpdate: 0,
   player: null,
   players: [],
   coop: false,
@@ -1171,7 +1172,10 @@ const Game = {
       }
     }
 
-    if (save.options.minimap) this.updateMinimapOpacity();
+    if (save.options.minimap && now >= this.minimapOpacityNextUpdate) {
+      this.updateMinimapOpacity();
+      this.minimapOpacityNextUpdate = now + 100;
+    }
   },
 
   explodeLong(pr) {
