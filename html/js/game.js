@@ -1800,14 +1800,10 @@ const Game = {
         }
       }
     }
-    mm.fillStyle = 'rgba(4,13,26,0.9)';
-    mm.fillRect(2, h - 25, w - 4, 23);
     mm.fillStyle = '#e8fbff';
     mm.font = `${Math.max(7, Math.round(cell * 0.2))}px monospace`;
     mm.textAlign = 'left';
-    mm.textBaseline = 'alphabetic';
-    mm.fillText('TÚ  $ tienda  ◆ cofre', 5, h - 14);
-    mm.fillText('+ mejora  ! reto  ★ jefe', 5, h - 5);
+    mm.fillText('TÚ  $ tienda  ◆ cofre  + mejora  ! reto  ★ jefe', 5, h - 6);
   },
 
   spawnParticles(x, y, color, n) {

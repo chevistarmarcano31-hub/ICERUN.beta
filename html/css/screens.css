@@ -1043,8 +1043,8 @@
 .armory-weapon-group .armory-weapon { min-height: 112px; padding: 10px; }
 .armory-weapon-group .weapon-art { margin: 10px 0 6px; font-size: 15px; }
 .skin-arrow { width: 34px; height: 30px; color: var(--ice-neon); background: rgba(0,229,255,.1); border: 1px solid var(--ice-cyan); border-radius: 4px; font: 22px/1 'Courier New', monospace; cursor: pointer; }
-.armory-filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
-.armory-filter-bar button { padding: 7px 9px; border: 1px solid rgba(0,229,255,.35); border-radius: 4px; color: var(--ice-frost); background: rgba(4,13,26,.8); font: 9px 'Courier New', monospace; cursor: pointer; }
+.armory-filter-bar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: 6px; width: 100%; margin: 12px 0 4px; }
+.armory-filter-bar button { min-width: 0; min-height: 32px; padding: 7px 5px; border: 1px solid rgba(0,229,255,.35); border-radius: 4px; color: var(--ice-frost); background: rgba(4,13,26,.8); font: 9px 'Courier New', monospace; cursor: pointer; white-space: normal; line-height: 1.15; overflow-wrap: anywhere; }
 .armory-filter-bar button:hover, .armory-filter-bar button.selected { color: #fff; border-color: var(--ice-cyan); background: rgba(0,150,210,.22); }
 .armor-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 14px; max-width: 1100px; margin: 0 auto 16px; }
 .armor-category-column { min-width: 0; }
@@ -1158,11 +1158,12 @@
   .character-selector { gap: 10px; }
   .character-arrow { width: 44px; height: 64px; font-size:38px; }
   .customization-preview canvas { width:190px; height:190px; }
+  .armory-filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
-  .armory-layout { grid-template-columns: 1fr; overflow-y: auto;     .armor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .perm-shop-items { grid-template-columns: 1fr; }
-  }
+  .armory-layout { grid-template-columns: 1fr; overflow-y: auto; }
+  .armor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .perm-shop-items { grid-template-columns: 1fr; }
 
   /* Botón de navegación común en todas las pantallas. */
   #btn-customize-back,
