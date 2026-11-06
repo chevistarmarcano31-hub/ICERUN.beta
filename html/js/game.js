@@ -128,6 +128,7 @@ const Game = {
       level: 1,
       xp: 0,
       xpToNext: this.coop ? 28 : 20,
+      floor10Rewarded: false,
       levelPerks: {
         atk: 0, def: 0, maxHp: 0, speed: 0, crit: 0, atkSpeed: 0, range: 0,
         lifesteal: 0, cooldownMul: 1, meleeArcBonus: 0, extraBasicProj: 0,
@@ -341,7 +342,11 @@ const Game = {
     const challengeRoom = allRooms.find(r => r.room.type === 'combat');
     if (challengeRoom) {
       challengeRoom.room.type = 'challenge';
-      challengeRoom.room.challenge = Util.pick(CHALLENGE_ROOMS);
+      challengeRoom.room.challenge = {
+        ...Util.pick(CHALLENGE_ROOMS),
+        wave: 1,
+        totalWaves: 3,
+      };
     }
     let bossPos = null, bossDist = -1;
     for (const r of allRooms) {
@@ -366,7 +371,22 @@ const Game = {
     this.enterRoom(startX, startY);
   },
 
-  enterRoom(x, y) {
+  getRoomSpawn(room, entryDoor = null, playerIndex = 0) {
+    if (!entryDoor || !room?.puertas) {
+      return { x: CFG.W / 2 + (playerIndex ? 42 : -42), y: CFG.H - 100 };
+    }
+    const door = room.puertas[entryDoor];
+    if (!door) return { x: CFG.W / 2, y: CFG.H / 2 };
+    const inward = Math.max(48, CFG.WALL + 24);
+    const offsets = playerIndex ? (playerIndex % 2 ? 28 : -28) : 0;
+    if (entryDoor === 'puertaArriba') return { x: door.x + offsets, y: door.y + inward };
+    if (entryDoor === 'puertaAbajo') return { x: door.x + offsets, y: door.y - inward };
+    if (entryDoor === 'puertaIzquierda') return { x: door.x + inward, y: door.y + offsets };
+    if (entryDoor === 'puertaDerecha') return { x: door.x - inward, y: door.y + offsets };
+    return { x: CFG.W / 2, y: CFG.H / 2 };
+  },
+
+  enterRoom(x, y, entryDoor = null) {
     const r = this.rooms[y][x];
     if (!r) return;
 
@@ -387,8 +407,9 @@ const Game = {
     this.damageNumbers = [];
     r.visited = true;
     this.activePlayers().forEach((p, index) => {
-      p.x = CFG.W / 2 + (index ? 42 : -42);
-      p.y = CFG.H - 100;
+      const spawn = this.getRoomSpawn(r, entryDoor, index);
+      p.x = spawn.x;
+      p.y = spawn.y;
       p.downed = false;
     });
     if (r.type === 'boss' && !r.boss) {
@@ -680,25 +701,25 @@ const Game = {
 
     if (p.y < CFG.WALL) {
       if (inDoorX && canPass && canGoTo(r.neighbors.up)) {
-        this.enterRoom(r.neighbors.up.x, r.neighbors.up.y); return;
+        this.enterRoom(r.neighbors.up.x, r.neighbors.up.y, 'puertaAbajo'); return;
       }
       p.y = CFG.WALL;
     }
     if (p.y > CFG.H - CFG.WALL) {
       if (inDoorX && canPass && canGoTo(r.neighbors.down)) {
-        this.enterRoom(r.neighbors.down.x, r.neighbors.down.y); return;
+        this.enterRoom(r.neighbors.down.x, r.neighbors.down.y, 'puertaArriba'); return;
       }
       p.y = CFG.H - CFG.WALL;
     }
     if (p.x < CFG.WALL) {
       if (inDoorY && canPass && canGoTo(r.neighbors.left)) {
-        this.enterRoom(r.neighbors.left.x, r.neighbors.left.y); return;
+        this.enterRoom(r.neighbors.left.x, r.neighbors.left.y, 'puertaDerecha'); return;
       }
       p.x = CFG.WALL;
     }
     if (p.x > CFG.W - CFG.WALL) {
       if (inDoorY && canPass && canGoTo(r.neighbors.right)) {
-        this.enterRoom(r.neighbors.right.x, r.neighbors.right.y); return;
+        this.enterRoom(r.neighbors.right.x, r.neighbors.right.y, 'puertaIzquierda'); return;
       }
       p.x = CFG.W - CFG.WALL;
     }
@@ -1151,6 +1172,23 @@ const Game = {
     if (!this.survivalMode && this.currentRoom && !this.currentRoom.cleared) {
       const noBoss = !this.currentRoom.boss || this.currentRoom.boss.dead;
       if (this.enemies.length === 0 && noBoss) {
+        if (this.currentRoom.type === 'challenge' &&
+            this.currentRoom.challenge &&
+            this.currentRoom.challenge.wave < this.currentRoom.challenge.totalWaves) {
+          const challenge = this.currentRoom.challenge;
+          challenge.wave++;
+          this.currentRoom.spawnEnemies(this.floor, this.diffMul());
+          this.enemies = this.currentRoom.enemies.slice();
+          this.projectiles = [];
+          UI.toast(
+            `${challenge.icon} Horda ${challenge.wave}/${challenge.totalWaves} · La cámara se intensifica`,
+            'danger',
+          );
+          Audio2.challenge();
+          this.markCombat();
+          UI.updateHud();
+          return;
+        }
         this.currentRoom.cleared = true;
         for (const p of this.activePlayers()) {
           if (p.downed) {
@@ -1688,6 +1726,35 @@ const Game = {
     const cell = Math.min(w, h) / (size + 1);
     const offX = (w - cell * size) / 2;
     const offY = (h - cell * size) / 2;
+    const roomIcons = {
+      start: '●',
+      shop: '$',
+      chest: '◆',
+      upgrade: '+',
+      challenge: '!',
+      boss: '★',
+    };
+    mm.lineWidth = Math.max(1, cell * 0.1);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const r = this.rooms[y][x];
+        if (!r) continue;
+        const px = offX + x * cell + cell / 2;
+        const py = offY + y * cell + cell / 2;
+        for (const direction of ['right', 'down']) {
+          const neighbor = r.neighbors[direction];
+          if (!neighbor) continue;
+          const nx = offX + neighbor.x * cell + cell / 2;
+          const ny = offY + neighbor.y * cell + cell / 2;
+          const visible = r.visited || this.rooms[neighbor.y][neighbor.x]?.visited;
+          mm.strokeStyle = visible ? 'rgba(178,235,242,0.8)' : 'rgba(0,229,255,0.2)';
+          mm.beginPath();
+          mm.moveTo(px, py);
+          mm.lineTo(nx, ny);
+          mm.stroke();
+        }
+      }
+    }
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const r = this.rooms[y][x];
@@ -1703,8 +1770,40 @@ const Game = {
         else if (r.visited) mm.fillStyle = 'rgba(0,229,255,0.6)';
         else mm.fillStyle = 'rgba(0,229,255,0.15)';
         mm.fillRect(px + 1, py + 1, cell - 2, cell - 2);
+        const icon = roomIcons[r.type];
+        if (icon && !(r.type === 'boss' && !this.bossUnlocked)) {
+          mm.save();
+          const iconX = px + cell / 2;
+          const iconY = py + cell / 2;
+          const iconRadius = Math.max(7, cell * 0.27);
+          mm.fillStyle = x === this.roomPos.x && y === this.roomPos.y ? '#e8fbff' : '#071a2e';
+          mm.beginPath();
+          mm.arc(iconX, iconY, iconRadius, 0, Math.PI * 2);
+          mm.fill();
+          mm.strokeStyle = '#ffffff';
+          mm.lineWidth = Math.max(1.5, cell * 0.06);
+          mm.stroke();
+          mm.fillStyle = x === this.roomPos.x && y === this.roomPos.y ? '#071a2e' : '#ffffff';
+          mm.font = `bold ${Math.max(12, Math.round(cell * 0.56))}px monospace`;
+          mm.textAlign = 'center';
+          mm.textBaseline = 'middle';
+          mm.fillText(icon, iconX, iconY + 1);
+          mm.restore();
+        }
+        if (x === this.roomPos.x && y === this.roomPos.y) {
+          mm.strokeStyle = '#ffffff';
+          mm.lineWidth = 2;
+          mm.strokeRect(px + 1, py + 1, cell - 2, cell - 2);
+          mm.beginPath();
+          mm.arc(px + cell / 2, py + cell / 2, Math.max(2, cell * 0.18), 0, Math.PI * 2);
+          mm.stroke();
+        }
       }
     }
+    mm.fillStyle = '#e8fbff';
+    mm.font = `${Math.max(7, Math.round(cell * 0.2))}px monospace`;
+    mm.textAlign = 'left';
+    mm.fillText('TÚ  $ tienda  ◆ cofre  + mejora  ! reto  ★ jefe', 5, h - 6);
   },
 
   spawnParticles(x, y, color, n) {
@@ -1752,6 +1851,14 @@ const Game = {
 
     // 🗺️ Nuevo reto por piso
     this._rollFloorChallenge();
+
+    if (this.floor === 10 && !this.run.floor10Rewarded) {
+      this.run.floor10Rewarded = true;
+      const roleId = save.customization.role || 'tank';
+      UI.addRoleExp(roleId, 500);
+      UI.toast('🏆 Piso 10 alcanzado: +500 EXP', 'gold');
+      Save.write();
+    }
 
     this.rebuildPlayers(true);
     for (const p of this.activePlayers()) p.downed = false;

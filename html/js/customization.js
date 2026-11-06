@@ -21,6 +21,7 @@ const PlayerCustomization = {
             !UI.screens.customize.classList.contains('is-hidden')) {
           UI.refreshCustomization();
         }
+        if (typeof UI !== 'undefined' && UI.current === 'armory') UI.refreshArmory();
       };
       image.onerror = () => console.warn(`Sprite no encontrado: ${sprite.src}`);
       image.src = sprite.src;

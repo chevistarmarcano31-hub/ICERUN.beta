@@ -24,7 +24,7 @@ const Audio2 = {
       this.music.dataset.track = '-1';
       this.music.addEventListener('canplay', () => this.playMusic());
       this.music.addEventListener('error', () => {
-        console.error('No se pudo cargar la música de ambiente:', this.music.src);
+        this.music.dataset.unavailable = 'true';
       });
       this.music.addEventListener('ended', () => {
         this.musicTrack = (this.musicTrack + 1) % this.musicTracks.length;
@@ -35,6 +35,7 @@ const Audio2 = {
     }
     this.music.volume = this.musicEnabled ? (save.options.volume / 100) * 0.35 : 0;
     if (this.musicEnabled && this.music.dataset.track !== String(this.musicTrack)) {
+      if (this.music.dataset.unavailable === 'true') return;
       this.music.src = this.musicTracks[this.musicTrack];
       this.music.dataset.track = String(this.musicTrack);
       this.music.load();
@@ -44,7 +45,7 @@ const Audio2 = {
   playMusic() {
     if (!this.music || !this.musicEnabled || !this.music.paused) return;
     this.music.play().catch(error => {
-      if (error.name !== 'NotAllowedError') {
+      if (error.name !== 'NotAllowedError' && error.name !== 'NotSupportedError') {
         console.error('No se pudo reproducir la música de ambiente:', error);
       }
     });

@@ -1,3 +1,17 @@
+var dineroJugador = 5000;
+
+function mejorarItem(itemId, tipo) {
+  return UI.mejorarItem(itemId, tipo);
+}
+
+function calcularStatsTotales(personaje, armaEquipada, armadurasEquipadas) {
+  return UI.calcularStatsTotales(personaje, armaEquipada, armadurasEquipadas);
+}
+
+function verificarLogros() {
+  return UI.checkAchievements();
+}
+
 const UI = {
   screens: {},
   current: 'menu',
@@ -15,11 +29,128 @@ const UI = {
   _mobileHudEditing: false,
   _mobileHudSelected: null,
   _customizationReturn: 'lobby',
+  _customizationSpriteIndex: 0,
+  _openArmorCategories: new Set(),
+  _openArmoryRoles: new Set(),
   _lobbyEditing: false,
   _lobbySelected: null,
   _lobbyEditReturn: 'hud',
   _abilityElements: null,
   _cooldownRenderState: {},
+  _shopCategory: 'all',
+  _shopSubcategory: 'all',
+  _shopSort: 'featured',
+  _shopMissingOnly: false,
+  _shopSelectedId: null,
+  ARMORY_ROLES: {
+    tank:{ name:'EL TANQUE', icon:'🛡', desc:'Regeneración de escudo.', passive:'Regeneración de escudo', active:'Dash explosivo', combo:'Escopeta + Escudo', stats:{ attackSpeed:5, mobility:2, special:7 } },
+    assassin:{ name:'EL ASESINO', icon:'⚡', desc:'Invisibilidad al quedarse quieto.', passive:'Invisibilidad al quedarse quieto', active:'Golpe crítico garantizado', combo:'Francotirador + Daga', stats:{ attackSpeed:3, mobility:6, special:9 } },
+    support:{ name:'EL SOPORTE', icon:'✦', desc:'Aura de curación.', passive:'Aura de curación', active:'Dron de rescate', combo:'Subfusil + Pistola médica', stats:{ attackSpeed:6, mobility:8, special:4 } },
+    tactician:{ name:'EL TÁCTICO', icon:'⌖', desc:'Visión de radar.', passive:'Visión de radar', active:'Torreta automática', combo:'Rifle de asalto + Lanzagranadas', stats:{ attackSpeed:8, mobility:5, special:6 } },
+    runner:{ name:'EL CORREDOR', icon:'➤', desc:'Pies ligeros.', passive:'Pies ligeros', active:'Dash de hielo', combo:'Subfusil dual + Dagas', stats:{ attackSpeed:9, mobility:10, special:3 } },
+    elementalist:{ name:'EL ELEMENTALISTA', icon:'🔥', desc:'Munición incendiaria.', passive:'Munición incendiaria', active:'Bola de fuego', combo:'Lanzallamas + Pistola de plasma', stats:{ attackSpeed:5, mobility:3, special:10 } },
+    specter:{ name:'EL ESPECTRO', icon:'◌', desc:'Paso silencioso.', passive:'Paso silencioso', active:'Marca del cazador', combo:'Ballesta + Cuchillas gemelas', stats:{ attackSpeed:8, mobility:8, special:5 } },
+    paladin:{ name:'EL PALADÍN', icon:'✚', desc:'Escudo reactivo.', passive:'Escudo reactivo', active:'Muro de hielo', combo:'Escopeta de asalto + Escudo de energía', stats:{ attackSpeed:3, mobility:2, special:8 } },
+    hunter:{ name:'LA CAZADORA', icon:'⌁', desc:'Olfato de presa.', passive:'Olfato de presa', active:'Trampa de red', combo:'Rifle de precisión + Pistola de anestesia', stats:{ attackSpeed:6, mobility:5, special:9 } },
+    alchemist:{ name:'EL ALQUIMISTA', icon:'⚗', desc:'Sangre ácida.', passive:'Sangre ácida', active:'Bomba de humo gélido', combo:'Pistola de ácido + Rifle de asalto', stats:{ attackSpeed:7, mobility:5, special:6 } },
+    combatMedic:{ name:'MÉDICO DE COMBATE', icon:'✚', desc:'Aura de curación.', passive:'Aura de curación', active:'Dron de rescate', combo:'Subfusil + Pistola médica', stats:{ attackSpeed:4, mobility:9, special:4 } },
+    ghostSniper:{ name:'FRANCOTIRADOR FANTASMA', icon:'◉', desc:'Camuflaje térmico.', passive:'Camuflaje térmico', active:'Disparo perforante', combo:'Francotirador + Cuchillo', stats:{ attackSpeed:2, mobility:4, special:10 } },
+    iceBerserker:{ name:'BERSERKER DE HIELO', icon:'✹', desc:'Piel de escarcha.', passive:'Piel de escarcha', active:'Golpe sísmico', combo:'Escopeta de doble cañón + Guantes de hielo', stats:{ attackSpeed:5, mobility:1, special:9 } },
+  },
+  ARMORY_WEAPONS: {
+    vigilante:{ name:'VIGILANTE', type:'RIFLES', desc:'Rifle de francotirador', art:'╞═══════◉', attackSpeed:-18, mobility:-20, special:28, upgrade:'Precisión extrema y daño crítico.' },
+    avispon:{ name:'AVISPÓN', type:'PISTOLAS', desc:'Subfusil automático', art:'╞════╪══', attackSpeed:18, mobility:16, special:-12, upgrade:'Ráfaga estable y cargador ampliado.' },
+    centinela:{ name:'CENTINELA', type:'PISTOLAS', desc:'Pistola de precisión', art:'╞═══◉', attackSpeed:8, mobility:8, special:4, upgrade:'Proyectiles perforantes.' },
+    rompehielo:{ name:'ROMPEHIELO', type:'ESCOPETAS', desc:'Escopeta táctica', art:'╞════╤══', attackSpeed:-10, mobility:-12, special:18, upgrade:'Dispersión congelante mejorada.' },
+    cuchilla:{ name:'CUCHILLA', type:'CUERPO A CUERPO', desc:'Dagas gemelas criogénicas', art:'╞═══✦', attackSpeed:12, mobility:12, special:10, upgrade:'Corte en arco mejorado.' },
+    hielo:{ name:'NÚCLEO HIELO', type:'PISTOLAS', desc:'Catalizador elemental', art:'◈══✧', attackSpeed:-4, mobility:-4, special:32, upgrade:'Efecto elemental amplificado.' },
+    granada:{ name:'GLACIADOR', type:'RIFLES', desc:'Rifle de asalto', art:'╞════╪═', attackSpeed:4, mobility:-4, special:14, upgrade:'Ráfaga táctica mejorada.' },
+    guante:{ name:'GUANTES DE HIELO', type:'CUERPO A CUERPO', desc:'Golpe sísmico', art:'✊══✦', attackSpeed:2, mobility:4, special:24, upgrade:'Impacto congelante de área.' },
+  },
+  ROLE_PROGRESS: (() => {
+    const roles = [
+      ['tank', 'Escudo de energía'], ['assassin', 'Daga espectral'], ['support', 'Pistola médica'],
+      ['tactician', 'Lanzagranadas'], ['runner', 'Subfusil dual'], ['elementalist', 'Pistola de plasma'],
+      ['specter', 'Ballesta de hielo'], ['paladin', 'Escopeta de asalto'], ['hunter', 'Rifle de precisión'],
+      ['alchemist', 'Pistola de ácido'], ['combatMedic', 'Dron médico'], ['ghostSniper', 'Rifle de plasma'],
+      ['iceBerserker', 'Escopeta pesada'],
+    ];
+    return roles.reduce((result, [id, signature], index) => {
+      result[id] = {
+        level: 1, exp: 0, expTotal: 0,
+        unlocks: [
+          { level: 5, name: 'Habilidad activa mejorada' },
+          { level: 10, name: signature },
+          { level: 25, name: 'Habilidad pasiva mejorada' },
+          { level: 40, name: 'Combo definitivo' },
+        ],
+      };
+      return result;
+    }, {});
+  })(),
+  ARMORY_FILTER: 'PISTOLAS',
+  ARMOR_DATA: (() => {
+    const categories = [
+      ['pants', 'PANTALONES', ['Movilidad', 'Velocidad de ataque']],
+      ['jackets', 'CHAQUETAS', ['Defensa', 'Poder especial']],
+      ['helmets', 'CASCOS', ['Velocidad de ataque', 'Precisión']],
+    ];
+    const names = {
+      pants: ['Corredor ártico', 'Trineo táctico', 'Pies de ventisca', 'Guardia ligera', 'Ráfaga polar', 'Nómada de hielo', 'Paso glacial', 'Veloz boreal', 'Explorador blanco', 'Impulso cero'],
+      jackets: ['Placa glaciar', 'Abrigo de asalto', 'Coraza aurora', 'Manto del paladín', 'Chaqueta criónica', 'Blindaje de tormenta', 'Armadura escarcha', 'Núcleo protector', 'Barrera polar', 'Exotraje hielo'],
+      helmets: ['Visor ártico', 'Casco centinela', 'Máscara de cazador', 'Corona boreal', 'Visor espectral', 'Casco de radar', 'Lente glacial', 'Cúpula táctica', 'Visor de precisión', 'Yelmo de escarcha'],
+    };
+    const output = [];
+    for (const [category, type, statNames] of categories) {
+      names[category].forEach((name, index) => {
+        const primary = 2 + (index % 5) * 2;
+        const secondary = 1 + ((index + 2) % 4) * 2;
+        const modifiers = category === 'pants'
+          ? { mobility: primary, attackSpeed: secondary, special: 0 }
+          : category === 'jackets'
+            ? { mobility: 0, attackSpeed: 0, special: secondary, defense: primary }
+            : { mobility: 0, attackSpeed: primary, special: 0, precision: secondary };
+        output.push({ id: `${category}-${index + 1}`, name, category, type, unlockLevel: 1 + index * 4, modifiers, statNames, baseStats: { mobility: modifiers.mobility, defense: modifiers.defense || 0, special: modifiers.special, attackSpeed: modifiers.attackSpeed } });
+      });
+    }
+    return output;
+  })(),
+  ensureMassiveArmory() {
+    this.ARMORY_WEAPONS.hielo.type = 'PISTOLAS';
+    const catalog = {
+      PISTOLAS: ['Pistola ártica', 'Pistola de plasma', 'Pistola médica', 'Pistola de ácido', 'Pistola centella', 'Pistola de ráfaga', 'Pistola glacial', 'Pistola silente', 'Pistola magnética', 'Pistola de precisión'],
+      RIFLES: ['Rifle de plasma', 'Rifle boreal', 'Rifle de asalto', 'Rifle de hielo', 'Rifle de pulsos', 'Rifle francotirador', 'Rifle de radar', 'Rifle tormenta', 'Rifle perforante', 'Rifle aurora'],
+      ESCOPETAS: ['Escopeta pesada', 'Escopeta doble', 'Escopeta glaciar', 'Escopeta de asalto', 'Escopeta rompehielo', 'Escopeta polar', 'Escopeta sísmica', 'Escopeta de carga', 'Escopeta nevada', 'Escopeta devastadora'],
+      'CUERPO A CUERPO': ['Daga espectral', 'Cuchillo criónico', 'Hacha de hielo', 'Martillo polar', 'Cuchillas gemelas', 'Guantes de combate', 'Lanza glacial', 'Garras boreales', 'Espada de escarcha', 'Bastón de ventisca'],
+    };
+    const roleIds = Object.keys(this.ROLE_PROGRESS);
+    let index = 0;
+    Object.entries(catalog).forEach(([type, names]) => {
+      const existing = Object.values(this.ARMORY_WEAPONS).filter(item => item.type === type).length;
+      names.slice(existing, 10).forEach((name, position) => {
+      const absolutePosition = existing + position;
+      const id = `mass-${type.toLowerCase().replace(/[^a-z]+/g, '-')}-${position + 1}`;
+      const attackSpeed = (absolutePosition % 5) * 4 - (type === 'ESCOPETAS' ? 8 : 0);
+      const mobility = (absolutePosition % 4) * 3 - (type === 'ESCOPETAS' ? 8 : 0);
+      const special = 4 + (absolutePosition % 6) * 4;
+      this.ARMORY_WEAPONS[id] = {
+        name, type, desc: `Arma desbloqueable de ${type.toLowerCase()}`,
+        art: '╞═════✦', attackSpeed, mobility, special,
+        statsBase: {
+          damage: type === 'PISTOLAS' ? 18 + absolutePosition * 2 : type === 'RIFLES' ? 30 + absolutePosition * 3 : type === 'ESCOPETAS' ? 42 + absolutePosition * 2 : 25 + absolutePosition * 2,
+          cadence: type === 'PISTOLAS' ? 92 - absolutePosition : type === 'RIFLES' ? 58 - absolutePosition : type === 'ESCOPETAS' ? 34 - absolutePosition : 76,
+          mobility: type === 'CUERPO A CUERPO' ? 100 : Math.max(30, 82 - absolutePosition * 3),
+          bullets: type === 'ESCOPETAS' ? 12 + absolutePosition : type === 'PISTOLAS' ? 8 + absolutePosition % 3 : type === 'RIFLES' ? 30 : 1,
+        },
+        costoMejora: 80 + absolutePosition * 15,
+        nivelActual: 1,
+        upgrade: 'Núcleo mejorado al máximo.',
+        unlockLevel: 5 + (absolutePosition % 6) * 5,
+        unlockRole: roleIds[index++ % roleIds.length],
+      };
+      });
+    });
+  },
   LOBBY_TARGETS: [
     ['lobby-title', 'Título'],
     ['lobby-stats', 'Estadísticas'],
@@ -39,7 +170,13 @@ const UI = {
   ],
   MOBILE_HUD_TARGETS: [
     ['hud-hp', 'Vida'],
+    ['hud-p2', 'Vida jugador 2'],
     ['abilityBar', 'Habilidades'],
+    ['abilitySlot', 'Botón dash HUD'],
+    ['basicSlot', 'Botón ataque HUD'],
+    ['meleeSlot', 'Botón melee HUD'],
+    ['longSlot', 'Botón ráfaga HUD'],
+    ['blockSlot', 'Botón bloqueo HUD'],
     ['hud-top-center', 'Piso / jefe'],
     ['hud-rooms', 'Salas'],
     ['hud-coins', 'Monedas'],
@@ -47,8 +184,15 @@ const UI = {
     ['hud-xp', 'Nivel / XP'],
     ['consumableBar', 'Consumibles'],
     ['minimap', 'Minimapa'],
+    ['bossLockMsg', 'Aviso de cámara bloqueada'],
     ['touchJoystick', 'Joystick'],
-    ['touchActions', 'Acciones táctiles'],
+    ['touchActions', 'Grupo de acciones'],
+    ['touchDash', 'Botón dash'],
+    ['touchBasic', 'Botón ataque'],
+    ['touchMelee', 'Botón melee'],
+    ['touchLong', 'Botón ráfaga'],
+    ['touchBlock', 'Botón bloqueo'],
+    ['touchInteract', 'Botón interactuar'],
   ],
 
   HUD_ELEMENTS: [
@@ -71,6 +215,8 @@ const UI = {
   },
 
   init() {
+    dineroJugador = save.metaCoins;
+    this.ensureMassiveArmory();
     this.screens = {
       menu:          document.getElementById('screen-menu'),
       lobby:         document.getElementById('screen-lobby'),
@@ -89,6 +235,7 @@ const UI = {
       invModal:      document.getElementById('screen-inventory-modal'),
       customize:     document.getElementById('screen-customize'),
       armory:        document.getElementById('screen-armory'),
+      roleProgress:  document.getElementById('screen-role-progress'),
     };
 
     const bind = (id, fn) => {
@@ -103,6 +250,8 @@ const UI = {
     bind('btn-achievements', () => { this.refreshAchievements(); this.show('achievements'); });
     bind('btn-collection-menu', () => { this._lastScreen = 'menu'; this.show('armory'); });
     bind('btn-skin-menu', () => { this._customizationReturn = 'menu'; this.openCustomization(false); });
+    bind('btn-role-progress-menu', () => { this._lastScreen = 'menu'; this.show('roleProgress'); });
+    bind('btn-inv-meta-menu', () => { this._lastScreen = 'menu'; this.refreshInvMeta(); this.show('invMeta'); });
 
     bind('btn-new-run',    () => Game.startRun(false, false));
     bind('btn-coop-run',   () => this.startCoopCharacterSelection());
@@ -115,17 +264,68 @@ const UI = {
     bind('btn-armory', () => { this._lastScreen = 'lobby'; this.show('armory'); });
     bind('btn-collection-lobby', () => { this._lastScreen = 'lobby'; this.show('armory'); });
     bind('btn-armory-back', () => this.show(this._lastScreen === 'menu' ? 'menu' : 'lobby'));
+    bind('btn-role-progress-back', () => this.show(this._lastScreen === 'menu' ? 'menu' : 'lobby'));
     bind('btn-armory-skin', () => { this._customizationReturn = 'armory'; this.openCustomization(false); });
     bind('btn-armory-equip', () => {
-      const selected = document.querySelector('.armory-weapon.selected');
-      this.toast(`${selected?.dataset.weapon || 'Arma'} equipada`, 'gold');
+      this.toast('Combo de armas equipado', 'gold');
     });
-    document.querySelectorAll('.armory-weapon').forEach(button => {
+    document.getElementById('armoryRoleGrid')?.addEventListener('click', e => {
+      const role = e.target.closest('[data-role]')?.dataset.role;
+      if (role) {
+        if (e.target.closest('.armory-role-toggle')) {
+          if (this._openArmoryRoles.has(role)) this._openArmoryRoles.delete(role);
+          else this._openArmoryRoles.add(role);
+        }
+        this.selectArmoryRole(role);
+      }
+    });
+    document.getElementById('armoryWeaponGrid')?.addEventListener('click', e => {
+      const weapon = e.target.closest('[data-weapon]')?.dataset.weapon;
+      if (weapon) this.selectArmoryWeapon(weapon);
+    });
+    document.getElementById('armoryFilterBar')?.addEventListener('click', e => {
+      const filter = e.target.closest('[data-armory-filter]')?.dataset.armoryFilter;
+      if (filter) { this.ARMORY_FILTER = filter; this.refreshArmory(); }
+    });
+    bind('btn-upgrade-selected', () => {
+      const slot = document.querySelector('[data-weapon-slot].selected')?.dataset.weaponSlot || 'primary';
+      this.mejorarItem(save.customization[slot], 'arma');
+    });
+    document.getElementById('roleProgressList')?.addEventListener('click', e => {
+      const role = e.target.closest('[data-progress-role]')?.dataset.progressRole;
+      if (role) this.toggleRoleProgress(role);
+    });
+    document.getElementById('customizationArmorGrid')?.addEventListener('click', e => {
+      const category = e.target.closest('[data-armor-category]')?.dataset.armorCategory;
+      if (category) {
+        if (this._openArmorCategories.has(category)) this._openArmorCategories.delete(category);
+        else this._openArmorCategories.add(category);
+        this.refreshCustomization();
+        return;
+      }
+      const upgrade = e.target.closest('[data-upgrade-armor]')?.dataset.upgradeArmor;
+      if (upgrade) { this.upgradeArmor(upgrade); return; }
+      const armor = e.target.closest('[data-armor-id]')?.dataset.armorId;
+      if (armor) this.selectArmor(armor);
+    });
+    document.querySelectorAll('[data-weapon-slot]').forEach(button => {
       button.addEventListener('click', () => {
-        document.querySelectorAll('.armory-weapon').forEach(item => item.classList.remove('selected'));
-        button.classList.add('selected');
+        document.querySelectorAll('[data-weapon-slot]').forEach(item => {
+          item.classList.remove('selected', 'seleccionado');
+        });
+        button.classList.add('selected', 'seleccionado');
+        this.refreshArmory();
       });
     });
+    document.querySelectorAll('[data-skin-part]').forEach(button => {
+      button.addEventListener('click', () => this.selectSkinPart(button.dataset.skinPart));
+    });
+    bind('skinPrev', () => this.cycleSkinPart(-1));
+    bind('skinNext', () => this.cycleSkinPart(1));
+    bind('skinPrevCustomize', () => this.cycleSkinPart(-1));
+    bind('skinNextCustomize', () => this.cycleSkinPart(1));
+    bind('characterPrev', () => this.cycleCharacter(-1));
+    bind('characterNext', () => this.cycleCharacter(1));
     bind('btn-select-p1', () => this.selectCustomizationPlayer('p1'));
     bind('btn-select-p2', () => this.selectCustomizationPlayer('p2'));
     bind('btn-start-coop-selected', () => {
@@ -145,8 +345,6 @@ const UI = {
     bind('btn-reset-keys',   () => this.resetKeys());
     bind('btn-reset-pad',    () => this.resetGamepad());
     bind('btn-hud-options',  () => this.openHud('options'));
-    bind('btn-lobby-layout', () => this.openLobbyEditor());
-    bind('btn-lobby-layout-options', () => this.openLobbyEditor());
     bind('btn-hud-pause',    () => this.openHud('pause'));
     bind('btn-hud-back',     () => this.closeHud());
     bind('btn-hud-reset',    () => this.resetHud());
@@ -161,6 +359,36 @@ const UI = {
     bind('btn-stats-back', () => this.show('menu'));
     bind('btn-ach-back',   () => this.show(this._lastScreen === 'lobby' ? 'lobby' : 'menu'));
     bind('btn-perm-back',  () => this.show('lobby'));
+    document.getElementById('screen-shop-perm')?.addEventListener('click', e => {
+      const category = e.target.closest('[data-shop-category]')?.dataset.shopCategory;
+      const subcategory = e.target.closest('[data-shop-subcategory]')?.dataset.shopSubcategory;
+      const card = e.target.closest('[data-shop-item-id]');
+      const buy = e.target.closest('[data-shop-buy]');
+      if (category) {
+        this._shopCategory = category;
+        this._shopSubcategory = 'all';
+        this._shopMissingOnly = false;
+        this.refreshPermShop();
+      } else if (subcategory) {
+        this._shopSubcategory = subcategory;
+        this.refreshPermShop();
+      } else if (buy) {
+        e.stopPropagation();
+        if (buy.dataset.shopUpgrade) this.buyPermanentUpgrade(buy.dataset.shopUpgrade);
+        else this.unlockArmoryItem(buy.dataset.shopBuy);
+      } else if (card) {
+        this._shopSelectedId = card.dataset.shopItemId;
+        this.refreshPermShop();
+      }
+    });
+    document.getElementById('permShopSort')?.addEventListener('change', e => {
+      this._shopSort = e.target.value;
+      this.refreshPermShop();
+    });
+    document.getElementById('permShopMissing')?.addEventListener('click', () => {
+      this._shopMissingOnly = !this._shopMissingOnly;
+      this.refreshPermShop();
+    });
     bind('btn-inv-back',   () => this.show('lobby'));
 
     bind('btn-resume',        () => Game.resume());
@@ -199,8 +427,7 @@ const UI = {
 
     document.querySelectorAll('[data-toggle="minimap"]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-toggle="minimap"]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        this.setSelectedInGroup('[data-toggle="minimap"]', btn);
         save.options.minimap = btn.dataset.value === 'on';
         save.options.hud.show.minimap = save.options.minimap;
         Save.write();
@@ -210,19 +437,17 @@ const UI = {
 
     document.querySelectorAll('[data-toggle="music"]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-toggle="music"]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        this.setSelectedInGroup('[data-toggle="music"]', btn);
         save.options.music = btn.dataset.value === 'on';
         Audio2.setMusicEnabled(save.options.music);
         Save.write();
       });
     });
-    document.querySelector(`[data-toggle="music"][data-value="${save.options.music ? 'on' : 'off'}"]`)?.classList.add('active');
+    this.setSelectedInGroup('[data-toggle="music"]', document.querySelector(`[data-toggle="music"][data-value="${save.options.music ? 'on' : 'off'}"]`));
 
     document.querySelectorAll('[data-diff]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-diff]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        this.setSelectedInGroup('[data-diff]', btn);
         save.options.difficulty = btn.dataset.diff;
         Save.write();
       });
@@ -496,20 +721,48 @@ const UI = {
 
   applyMobileHudPositions() {
     const layout = this.mobileHudLayout();
+    const touchControls = document.getElementById('touchControls');
+    const touchTargets = [
+      'touchJoystick', 'touchActions', 'touchDash', 'touchBasic',
+      'touchMelee', 'touchLong', 'touchBlock', 'touchInteract',
+    ];
+    const abilityTargets = [
+      'abilityBar', 'abilitySlot', 'basicSlot', 'meleeSlot', 'longSlot', 'blockSlot',
+    ];
+    const hasCustomTouchLayout = touchTargets.some(id => layout[id]);
+    const hasIndividualTouchLayout = touchTargets.slice(2).some(id => layout[id]);
+    const hasIndividualAbilityLayout = abilityTargets.slice(1).some(id => layout[id]);
+    touchControls?.classList.toggle('mobile-hud-custom-layout', hasCustomTouchLayout);
+    touchControls?.classList.toggle('mobile-hud-individual-layout', hasIndividualTouchLayout);
+    document.getElementById('abilityBar')?.classList.toggle(
+      'mobile-hud-individual-layout', hasIndividualAbilityLayout,
+    );
     for (const [id] of this.MOBILE_HUD_TARGETS) {
       const el = document.getElementById(id);
+      if (!el) continue;
       const item = layout[id];
-      if (!el || !item) continue;
-      el.style.left = `${item.x}%`;
-      el.style.top = `${item.y}%`;
-      el.style.right = 'auto';
-      el.style.bottom = 'auto';
-      if (item.scale) {
-        el.style.setProperty('--mobile-hud-scale', item.scale);
-        el.style.transform = id === 'hud-top-center'
-          ? `translateX(-50%) scale(${item.scale})`
-          : `scale(${item.scale})`;
+      if (!item) {
+        el.style.removeProperty('left');
+        el.style.removeProperty('top');
+        el.style.removeProperty('right');
+        el.style.removeProperty('bottom');
+        el.style.removeProperty('position');
+        el.style.removeProperty('--mobile-hud-scale');
+        el.style.removeProperty('transform');
+        continue;
       }
+      el.style.setProperty('left', `${item.x}%`, 'important');
+      el.style.setProperty('top', `${item.y}%`, 'important');
+      el.style.setProperty('right', 'auto', 'important');
+      el.style.setProperty('bottom', 'auto', 'important');
+      if (touchTargets.includes(id) || abilityTargets.includes(id)) {
+        el.style.setProperty('position', 'absolute', 'important');
+      }
+      const scale = item.scale || 1;
+      el.style.setProperty('--mobile-hud-scale', scale);
+      el.style.setProperty('transform', id === 'hud-top-center'
+        ? `translateX(-50%) scale(calc(var(--hud-scale) * ${scale}))`
+        : `scale(calc(var(--hud-scale) * ${scale}))`);
     }
   },
 
@@ -541,11 +794,19 @@ const UI = {
     toolbar.innerHTML = `
       <strong>EDITAR HUD</strong>
       <label>Tamaño <input type="range" min="60" max="150" value="100" id="mobileHudToolbarSize"></label>
+      <button type="button" id="mobileHudToolbarReset">↻ Restablecer</button>
       <button type="button" id="mobileHudToolbarDone">✓ Guardar</button>
     `;
     app.appendChild(toolbar);
     toolbar.querySelector('#mobileHudToolbarSize').addEventListener('input', event => {
       this.setMobileHudScale(Number(event.target.value) / 100);
+    });
+    toolbar.querySelector('#mobileHudToolbarReset').addEventListener('click', () => {
+      const orientation = this.mobileHudOrientation();
+      save.options.mobileHud[orientation] = {};
+      this._mobileHudSelected = null;
+      this.applyMobileHudPositions();
+      Save.write();
     });
     toolbar.querySelector('#mobileHudToolbarDone').addEventListener('click', () => this.toggleMobileHudEditor());
   },
@@ -752,6 +1013,8 @@ const UI = {
     if (name === 'invMeta')       this.refreshInvMeta();
     if (name === 'options')       this.refreshOptionsUI();
     if (name === 'customize')     this.refreshCustomization();
+    if (name === 'armory')        this.refreshArmory();
+    if (name === 'roleProgress')  this.refreshRoleProgress();
     this._menuLastActiveOverlay = null;
     this._menuFocusIndex = 0;
 
@@ -933,6 +1196,387 @@ const UI = {
     badge.title = c.desc;
   },
 
+  expRequired(level) {
+    return Math.round(100 * Math.pow(level, 1.5));
+  },
+
+  setSelectedInGroup(selector, selected) {
+    document.querySelectorAll(selector).forEach(button => {
+      const active = button === selected;
+      button.classList.toggle('active', active);
+      button.classList.toggle('seleccionado', active);
+    });
+  },
+
+  syncEconomy() {
+    dineroJugador = save.metaCoins || 0;
+  },
+
+  mejorarItem(itemId, tipo) {
+    const isWeapon = tipo === 'arma' || tipo === 'weapon';
+    const item = isWeapon
+      ? this.ARMORY_WEAPONS[itemId]
+      : this.ARMOR_DATA.find(armor => armor.id === itemId);
+    if (!item) return false;
+    const levels = isWeapon ? save.customization.weaponLevels : save.customization.armorLevels;
+    const currentLevel = Math.max(1, Math.min(50, Number(levels[itemId]) || 1));
+    if (currentLevel >= 50) {
+      this.toast('Este objeto ya está en el nivel máximo', 'gold');
+      return false;
+    }
+    const cost = currentLevel * 100;
+    this.syncEconomy();
+    if (dineroJugador < cost) {
+      alert(`No tienes suficiente dinero. Necesitas ${cost} monedas.`);
+      return false;
+    }
+    dineroJugador -= cost;
+    save.metaCoins = dineroJugador;
+    levels[itemId] = currentLevel + 1;
+    save.totalUpgradesBought = (save.totalUpgradesBought || 0) + 1;
+    Save.write();
+    if (isWeapon) this.refreshArmory();
+    else this.refreshCustomization();
+    this.refreshLobby();
+    this.verificarLogros();
+    this.toast(`${item.name} mejorado al nivel ${currentLevel + 1}`, 'gold');
+    return true;
+  },
+
+  calcularStatsTotales(personaje, armaEquipada, armadurasEquipadas) {
+    const role = typeof personaje === 'string'
+      ? (this.ARMORY_ROLES[personaje] || this.ARMORY_ROLES.tank)
+      : (personaje || this.ARMORY_ROLES.tank);
+    const weapon = typeof armaEquipada === 'string' ? this.ARMORY_WEAPONS[armaEquipada] : armaEquipada;
+    const weaponStats = weapon ? this.weaponStats({ ...weapon, id: weapon.id || armaEquipada }) : {};
+    const armorList = Array.isArray(armadurasEquipadas)
+      ? armadurasEquipadas
+      : Object.values(armadurasEquipadas || {}).map(id => this.ARMOR_DATA.find(item => item.id === id)).filter(Boolean);
+    const stats = {
+      damage: role.stats?.damage || 10,
+      cadence: role.stats?.attackSpeed || 0,
+      mobility: role.stats?.mobility || 0,
+      bullets: role.stats?.bullets || 0,
+    };
+    stats.damage += weaponStats.damage || 0;
+    stats.cadence += weaponStats.cadence || weapon?.attackSpeed || 0;
+    stats.mobility += weaponStats.mobility || weapon?.mobility || 0;
+    stats.bullets += weaponStats.bullets || 0;
+    armorList.forEach(armor => {
+      const values = this.armorStats(armor);
+      stats.damage += values.damage || 0;
+      stats.cadence += values.attackSpeed || 0;
+      stats.mobility += values.mobility || 0;
+      stats.bullets += values.bullets || 0;
+    });
+    return Object.fromEntries(Object.entries(stats).map(([key, value]) => [key, Math.max(0, Math.round(value))]));
+  },
+
+  ganarPartidaPrueba() {
+    const roleId = save.customization.role || 'tank';
+    const level = this.addRoleExp(roleId, 500);
+    Save.write();
+    this.refreshRoleProgress();
+    this.refreshCustomization();
+    this.refreshArmory();
+    this.verificarLogros();
+    this.toast(`+500 EXP · Nivel ${level}`, 'gold');
+  },
+
+  addRoleExp(roleId, amount) {
+    const progress = this.roleProgress(roleId);
+    let level = progress.level;
+    let exp = progress.exp + Math.max(0, amount);
+    while (level < 50 && exp >= this.expRequired(level)) {
+      exp -= this.expRequired(level);
+      level += 1;
+    }
+    save.customization.roleProgress[roleId] = {
+      level,
+      exp,
+      expTotal: (progress.expTotal || 0) + Math.max(0, amount),
+    };
+    save.bestRoleLevel = Math.max(save.bestRoleLevel || 1, level);
+    this.unlockRoleWeapons(roleId, level);
+    return level;
+  },
+
+  unlockRoleWeapons(roleId, level) {
+    Object.entries(this.ARMORY_WEAPONS).forEach(([id, item]) => {
+      if ((item.unlockRole === roleId || !item.unlockRole) && (item.unlockLevel || 1) <= level) {
+        save.customization.unlockedArmory[id] = true;
+      }
+    });
+  },
+
+  roleProgress(roleId) {
+    const saved = save.customization.roleProgress?.[roleId] || {};
+    return {
+      level: Math.max(1, Math.min(50, saved.level || 1)),
+      exp: Math.max(0, saved.exp || 0),
+    };
+  },
+
+  roleUnlocks(roleId) {
+    return this.ROLE_PROGRESS[roleId]?.unlocks || [];
+  },
+
+  toggleRoleProgress(roleId) {
+    const state = save.customization.expandedRole === roleId ? '' : roleId;
+    save.customization.expandedRole = state;
+    Save.write();
+    this.refreshRoleProgress();
+  },
+
+  refreshRoleProgress() {
+    const list = document.getElementById('roleProgressList');
+    if (!list) return;
+    list.innerHTML = Object.entries(this.ARMORY_ROLES).map(([id, role]) => {
+      const progress = this.roleProgress(id);
+      const required = this.expRequired(progress.level);
+      const unlocks = this.roleUnlocks(id);
+      const next = unlocks.find(item => item.level > progress.level);
+      const expanded = save.customization.expandedRole === id;
+      const details = expanded ? `<div class="role-progress-details">${unlocks.map(item =>
+        `<div><span>NIVEL ${item.level}</span><strong>${item.name}</strong></div>`).join('')}</div>` : '';
+      return `<article class="role-progress-card ${expanded ? 'expanded' : ''}" data-progress-role="${id}">
+        <div class="role-progress-summary"><b>${role.icon}</b><div><h3>${role.name}</h3>
+          <span>NIVEL ${progress.level}/50 · ${progress.exp}/${required} EXP</span>
+          <i><em style="width:${Math.min(100, progress.exp / required * 100)}%"></em></i>
+          <small>Próximo desbloqueo: ${next ? `${next.name} (Nivel ${next.level})` : 'Arsenal completo'}</small>
+        </div><strong>›</strong></div>${details}
+      </article>`;
+    }).join('');
+  },
+
+  selectedArmorModifiers() {
+    const equipped = save.customization.armors || {};
+    return Object.values(equipped).reduce((total, id) => {
+      const armor = this.ARMOR_DATA.find(item => item.id === id);
+      if (!armor) return total;
+      Object.entries(armor.modifiers).forEach(([key, value]) => { total[key] = (total[key] || 0) + value; });
+      return total;
+    }, { attackSpeed: 0, mobility: 0, special: 0, defense: 0, precision: 0 });
+  },
+
+  isArmoryUnlocked(id) {
+    return Boolean(save.customization.unlockedArmory?.[id]);
+  },
+
+  armoryItemCost(item) {
+    return item.category ? 120 + item.unlockLevel * 12 : 180 + (item.unlockLevel || 1) * 18;
+  },
+
+  armorLevel(id) {
+    return Math.max(1, Math.min(50, Number(save.customization.armorLevels?.[id]) || 1));
+  },
+
+  weaponLevel(id) {
+    return Math.max(1, Math.min(50, Number(save.customization.weaponLevels?.[id]) || 1));
+  },
+
+  armorStats(armor) {
+    const level = this.armorLevel(armor.id);
+    const scale = 1 + (level - 1) * 0.05;
+    return Object.fromEntries(Object.entries(armor.baseStats || armor.modifiers).map(([key, value]) => [key, Math.round(value * scale)]));
+  },
+
+  upgradeArmor(id) {
+    return this.mejorarItem(id, 'armadura');
+  },
+
+  weaponStats(item) {
+    const level = this.weaponLevel(item.id);
+    const base = item.statsBase || { damage: 10, cadence: item.attackSpeed, mobility: item.mobility, bullets: 1 };
+    return { level, damage: Math.round(base.damage + level * 1.5), cadence: Math.round(base.cadence), mobility: Math.round(base.mobility + level * 0.4), bullets: base.bullets };
+  },
+
+  upgradeWeapon(id) {
+    return this.mejorarItem(id, 'arma');
+  },
+
+  unlockArmoryItem(id) {
+    const item = this.ARMORY_WEAPONS[id] || this.ARMOR_DATA.find(armor => armor.id === id);
+    if (!item || this.isArmoryUnlocked(id)) return;
+    const requiredLevel = item.unlockLevel || 1;
+    const requiredRole = item.unlockRole || save.customization.role || 'tank';
+    if (this.roleProgress(requiredRole).level < requiredLevel) {
+      this.toast(`Requiere nivel ${requiredLevel} del rol`, 'gold');
+      return;
+    }
+    const cost = this.armoryItemCost(item);
+    if ((save.metaCoins || 0) < cost) {
+      this.toast(`Necesitas ${cost} monedas meta para desbloquearlo`, 'gold');
+      return;
+    }
+    save.metaCoins -= cost;
+    save.customization.unlockedArmory[id] = true;
+    Save.write();
+    Audio2.buy();
+    this.refreshPermShop();
+    this.refreshArmory();
+    this.refreshCustomization();
+    this.refreshLobby();
+    this.toast(`${item.name} desbloqueado`, 'gold');
+  },
+
+  selectArmor(id) {
+    const armor = this.ARMOR_DATA.find(item => item.id === id);
+    if (!armor) return;
+    if (!this.isArmoryUnlocked(id)) {
+      this.toast('Desbloquea esta armadura en la Tienda Permanente', 'gold');
+      return;
+    }
+    save.customization.armors[armor.category] = id;
+    Save.write();
+    this.refreshCustomization();
+    this.refreshArmory();
+  },
+
+  armoryWeaponStats() {
+    const role = this.ARMORY_ROLES[save.customization.role] || this.ARMORY_ROLES.tank;
+    const primary = this.ARMORY_WEAPONS[save.customization.primary] || this.ARMORY_WEAPONS.vigilante;
+    const secondary = this.ARMORY_WEAPONS[save.customization.secondary] || this.ARMORY_WEAPONS.centinela;
+    const armor = this.selectedArmorModifiers();
+    return {
+      attackSpeed: Math.max(10, Math.min(100, role.stats.attackSpeed * 10 + primary.attackSpeed + secondary.attackSpeed + armor.attackSpeed)),
+      mobility: Math.max(10, Math.min(100, role.stats.mobility * 10 + primary.mobility + secondary.mobility + armor.mobility)),
+      special: Math.max(10, Math.min(100, role.stats.special * 10 + primary.special + secondary.special + armor.special)),
+    };
+  },
+
+  refreshArmory() {
+    const roleGrid = document.getElementById('armoryRoleGrid');
+    const weaponGrid = document.getElementById('armoryWeaponGrid');
+    let normalized = false;
+    if (!this.ARMORY_ROLES[save.customization.role]) { save.customization.role = 'tank'; normalized = true; }
+    if (!this.ARMORY_WEAPONS[save.customization.primary]) { save.customization.primary = 'vigilante'; normalized = true; }
+    if (!this.ARMORY_WEAPONS[save.customization.secondary]) { save.customization.secondary = 'centinela'; normalized = true; }
+    if (normalized) Save.write();
+    const role = this.ARMORY_ROLES[save.customization.role] || this.ARMORY_ROLES.tank;
+    const skinPreview = document.getElementById('armorySkinPreview');
+    if (skinPreview && typeof PlayerCustomization !== 'undefined') {
+      PlayerCustomization.renderPreview(skinPreview.getContext('2d'), PlayerCustomization.selected(), 180);
+    }
+    const selectedSlot = document.querySelector('[data-weapon-slot].selected')?.dataset.weaponSlot || 'primary';
+    document.querySelectorAll('[data-armory-filter]').forEach(button => {
+      const active = button.dataset.armoryFilter === this.ARMORY_FILTER;
+      button.classList.toggle('selected', active);
+      button.classList.toggle('seleccionado', active);
+    });
+    document.querySelectorAll('[data-weapon-slot]').forEach(button => {
+      const active = button.dataset.weaponSlot === selectedSlot;
+      button.classList.toggle('selected', active);
+      button.classList.toggle('seleccionado', active);
+    });
+    if (roleGrid) {
+      roleGrid.innerHTML = Object.entries(this.ARMORY_ROLES).map(([id, item]) => `
+        <article class="armory-role ${id === save.customization.role ? 'seleccionado' : ''} ${this._openArmoryRoles.has(id) ? 'open' : ''}" data-role="${id}">
+          <button class="armory-role-toggle" type="button">
+            <b>${item.icon}</b><strong>${item.name}</strong><span>${this._openArmoryRoles.has(id) ? '▲' : '▼'}</span>
+          </button>
+          <div class="armory-role-details"><small>${item.desc}</small><em>Pasiva: ${item.passive}</em><em>Activa: ${item.active}</em><em>Combo: ${item.combo}</em></div>
+        </article>
+      `).join('');
+    }
+    if (weaponGrid) {
+      const groups = {};
+      for (const [id, item] of Object.entries(this.ARMORY_WEAPONS)) {
+        if (this.ARMORY_FILTER === 'FALTANTES' && this.isArmoryUnlocked(id)) continue;
+        if (this.ARMORY_FILTER !== 'FALTANTES' && item.type !== this.ARMORY_FILTER) continue;
+        (groups[item.type] ||= []).push([id, item]);
+      }
+      weaponGrid.innerHTML = Object.entries(groups).map(([type, weapons]) => `
+        <div class="armory-weapon-group"><h4>${type}</h4>
+            <div class="armory-weapon-group-grid">${weapons.map(([id, item]) => `
+              ${(() => {
+                const locked = !this.isArmoryUnlocked(id);
+                const stats = this.weaponStats({ ...item, id });
+                const required = item.unlockLevel || 1;
+                return `<button class="armory-weapon ${id === save.customization[selectedSlot] ? 'seleccionado' : ''} ${locked ? 'locked' : ''}" type="button" data-weapon="${id}" ${locked ? 'disabled' : ''}>
+                <strong>${locked ? '🔒 ' : ''}${item.name}</strong><small>${item.desc}</small><div class="weapon-art">${item.art}</div><em>${locked ? `NIVEL ${required} REQUERIDO` : `NIVEL ${stats.level}/50 · DAÑO ${stats.damage} · ${stats.bullets} BALAS`}</em>
+              </button>`;
+              })()}
+            `).join('')}</div>
+        </div>
+      `).join('');
+    }
+    const primary = this.ARMORY_WEAPONS[save.customization.primary] || this.ARMORY_WEAPONS.vigilante;
+    const secondary = this.ARMORY_WEAPONS[save.customization.secondary] || this.ARMORY_WEAPONS.centinela;
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    set('primaryWeaponName', primary.name);
+    set('secondaryWeaponName', secondary.name);
+    set('armoryComboLabel', `${primary.name} + ${secondary.name}`);
+    set('armoryComboHint', `${role.name} // Combo ideal: ${role.combo} // ${role.passive}`);
+    set('armoryPassive', role.passive);
+    set('armoryActive', role.active);
+    const stats = this.calcularStatsTotales(save.customization.role, save.customization[selectedSlot], save.customization.armors);
+    const labels = [['damage', 'Daño'], ['cadence', 'Cadencia'], ['mobility', 'Movilidad'], ['bullets', 'Balas']];
+    const bars = document.getElementById('armoryStatBars');
+    if (bars) bars.innerHTML = labels.map(([key, label]) => {
+      const value = stats[key] || 0;
+      const max = key === 'bullets' ? 50 : 100;
+      return `
+      <div class="armory-stat"><div><span>${label}</span><b>${value}</b></div><i><em style="width:${Math.min(100, value / max * 100)}%"></em></i></div>
+    `;
+    }).join('');
+    const selected = this.ARMORY_WEAPONS[save.customization[selectedSlot]] || primary;
+    const selectedId = save.customization[selectedSlot];
+    const selectedLevel = this.weaponLevel(selectedId);
+    set('armoryUpgradeLevel', `NIVEL ${selectedLevel}/50`);
+    const upgradeButton = document.getElementById('btn-upgrade-selected');
+    if (upgradeButton) upgradeButton.disabled = selectedLevel >= 50 || !this.isArmoryUnlocked(selectedId);
+    set('armoryWeaponUpgrade', `${selected.name}: ${selected.upgrade}`);
+    const skinPart = document.querySelector('[data-skin-part].selected')?.dataset.skinPart || 'shirt';
+    this.selectSkinPart(skinPart, false);
+  },
+
+  selectArmoryRole(role) {
+    if (!this.ARMORY_ROLES[role]) return;
+    save.customization.role = role;
+    Save.write();
+    this.refreshArmory();
+  },
+
+  selectArmoryWeapon(weapon) {
+    if (!this.ARMORY_WEAPONS[weapon]) return;
+    const item = this.ARMORY_WEAPONS[weapon];
+    if (!this.isArmoryUnlocked(weapon)) {
+      this.toast('Desbloquea este objeto en la Tienda Permanente', 'gold');
+      return;
+    }
+    const slot = document.querySelector('[data-weapon-slot].selected')?.dataset.weaponSlot || 'primary';
+    save.customization[slot] = weapon;
+    Save.write();
+    this.refreshArmory();
+  },
+
+  selectSkinPart(part, write = true) {
+    const labels = { shirt:'CAMISA', pants:'PANTALÓN', helmet:'CASCO' };
+    document.querySelectorAll('[data-skin-part]').forEach(button => {
+      button.classList.toggle('selected', button.dataset.skinPart === part);
+    });
+    const label = document.getElementById('armorySkinPart');
+    if (label) label.textContent = labels[part] || labels.shirt;
+    const customizeLabel = document.getElementById('customizeSkinPart');
+    const variant = Number(save.customization.skinParts?.[part]) || 0;
+    if (customizeLabel) customizeLabel.textContent = `${labels[part] || labels.shirt} ${variant + 1}`;
+    if (write) {
+      save.customization.skinParts.active = part;
+      Save.write();
+    }
+  },
+
+  cycleSkinPart(direction) {
+    const parts = ['shirt', 'pants', 'helmet'];
+    const active = document.querySelector('[data-skin-part].selected')?.dataset.skinPart || 'shirt';
+    const current = Number(save.customization.skinParts?.[active]) || 0;
+    const nextIndex = (current + direction + 5) % 5;
+    save.customization.skinParts[active] = nextIndex;
+    Save.write();
+    this.selectSkinPart(active, false);
+  },
+
   refreshLobby() {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     set('lobbyCoins', save.metaCoins || 0);
@@ -952,6 +1596,8 @@ const UI = {
     if (!grid || !preview || !selectedLabel) return;
 
     const selected = PlayerCustomization.selected(this.customizationPlayer);
+    const selectedIndex = PLAYER_SPRITES.findIndex(sprite => sprite.id === selected.id);
+    if (selectedIndex >= 0) this._customizationSpriteIndex = selectedIndex;
     selectedLabel.textContent = `${this.customizationPlayer ? this.customizationPlayer.toUpperCase() + ' · ' : ''}Seleccionado: ${selected.name}`;
     grid.innerHTML = '';
     const ctx = preview.getContext('2d');
@@ -986,17 +1632,61 @@ const UI = {
     if (controls) controls.classList.toggle('is-hidden', !this.customizationPlayer);
     if (hint) hint.innerHTML = this.customizationPlayer
       ? 'Elige un personaje para cada jugador. Pueden ser diferentes.'
-      : 'Selecciona un sprite de <strong>player.customize</strong>.';
+      : 'Selecciona un sprite de <strong>player.customize</strong>. Las skins son estéticas; las armaduras sí modifican estadísticas.';
     const p1 = document.getElementById('btn-select-p1');
     const p2 = document.getElementById('btn-select-p2');
     if (p1) p1.textContent = `P1: ${PlayerCustomization.selected('p1').name}`;
     if (p2) p2.textContent = `P2: ${PlayerCustomization.selected('p2').name}`;
+    const armorGrid = document.getElementById('customizationArmorGrid');
+    if (armorGrid) {
+      const armorCategories = [
+        ['helmets', 'CASCOS'],
+        ['jackets', 'CHAQUETAS'],
+        ['pants', 'PANTALONES'],
+      ];
+      const renderArmor = armor => {
+        const equipped = save.customization.armors?.[armor.category] === armor.id;
+        const unlocked = this.isArmoryUnlocked(armor.id);
+        const level = this.armorLevel(armor.id);
+        const stats = this.armorStats(armor);
+        const modifierText = Object.entries(stats).filter(([, value]) => value).map(([key, value]) => `${key} +${value}`).join(' · ');
+        const cost = Math.round((armor.costoMejora || 100) * (1 + level * 0.12));
+        return `<article class="armor-card ${equipped ? 'selected' : ''} ${unlocked ? '' : 'locked'}" data-armor-id="${armor.id}">
+          <button type="button" class="armor-card-select" ${unlocked ? '' : 'disabled'}>
+          <strong>${unlocked ? '' : '🔒 '}${armor.name}</strong><small>${armor.type}${unlocked ? '' : ' · TIENDA PERMANENTE'}</small><span>${modifierText}</span>
+          </button>
+          <button type="button" class="btn-hielo armor-upgrade" data-upgrade-armor="${armor.id}" ${!unlocked || level >= 50 ? 'disabled' : ''}>MEJORAR (NIVEL ${level}/50) · ${cost} ◈</button>
+        </article>`;
+      };
+      armorGrid.innerHTML = armorCategories.map(([category, label]) => `
+        <section class="armor-category-column ${this._openArmorCategories.has(category) ? 'open' : ''}">
+          <button type="button" class="armor-category-toggle" data-armor-category="${category}">${label} <span>${this._openArmorCategories.has(category) ? '▲' : '▼'}</span></button>
+          <div class="armor-category-list">${this.ARMOR_DATA.filter(armor => armor.category === category).map(renderArmor).join('')}</div>
+        </section>
+      `).join('');
+    }
+    const progress = this.roleProgress(save.customization.role || 'tank');
+    const required = this.expRequired(progress.level);
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    set('customizationRoleLevel', progress.level);
+    set('customizationRoleExp', `${progress.exp} / ${required} EXP`);
+    set('customizationNextLevel', `${Math.max(0, required - progress.exp)} EXP restantes`);
+    const fill = document.getElementById('customizationRoleExpFill');
+    if (fill) fill.style.width = `${Math.min(100, progress.exp / required * 100)}%`;
   },
 
   openCustomization(coop = false) {
     this.customizationPlayer = coop ? (this.customizationPlayer || 'p1') : null;
+    this._openArmorCategories.clear();
     this.refreshCustomization();
     this.show('customize');
+  },
+
+  cycleCharacter(direction) {
+    const count = PLAYER_SPRITES.length;
+    this._customizationSpriteIndex = (this._customizationSpriteIndex + direction + count) % count;
+    const sprite = PLAYER_SPRITES[this._customizationSpriteIndex];
+    PlayerCustomization.select(sprite.id, this.customizationPlayer);
   },
 
   startCoopCharacterSelection() {
@@ -1015,13 +1705,19 @@ const UI = {
     const sfxEl = document.getElementById('optSfx');
     if (volEl) { volEl.value = save.options.volume; document.getElementById('volVal').textContent = save.options.volume; }
     if (sfxEl) { sfxEl.value = save.options.sfx; document.getElementById('sfxVal').textContent = save.options.sfx; }
+    const money = document.getElementById('optionMoney');
+    if (money) money.textContent = save.metaCoins || 0;
     document.querySelectorAll('[data-toggle="minimap"]').forEach(b => {
       const on = save.options.minimap && b.dataset.value === 'on';
       const off = !save.options.minimap && b.dataset.value === 'off';
-      b.classList.toggle('active', on || off);
+      const active = on || off;
+      b.classList.toggle('active', active);
+      b.classList.toggle('seleccionado', active);
     });
     document.querySelectorAll('[data-diff]').forEach(b => {
-      b.classList.toggle('active', save.options.difficulty === b.dataset.diff);
+      const active = save.options.difficulty === b.dataset.diff;
+      b.classList.toggle('active', active);
+      b.classList.toggle('seleccionado', active);
     });
     this.buildGamepadBindList();
   },
@@ -1053,8 +1749,10 @@ const UI = {
 
     for (const ach of ACHIEVEMENTS_DB) {
       const unlocked = !!save.achievements[ach.id];
-      const current = save[ach.stat] || 0;
+      const current = this.achievementCurrent(ach);
       const pct = Math.min(100, Math.round((current / ach.goal) * 100));
+      const coinReward = ach.reward || 100;
+      const expReward = ach.rewardExp || Math.max(100, ach.goal * 25);
       if (unlocked) unlockedCount++;
 
       const card = document.createElement('div');
@@ -1064,6 +1762,7 @@ const UI = {
         <div class="ach-card-icon" style="color:${unlocked ? '#ffd54f' : '#7a9ab0'};">${ach.icon}</div>
         <div class="ach-card-name">${ach.name}</div>
         <div class="ach-card-desc">${ach.desc}</div>
+        <div class="ach-card-reward">Recompensa: ${coinReward} ◆ · ${expReward} EXP</div>
         <div class="ach-card-progress">${unlocked ? 'Desbloqueado' : `${current} / ${ach.goal}`}</div>
         <div class="ach-progress-bar">
           <div class="ach-progress-fill" style="width:${unlocked ? 100 : pct}%;"></div>
@@ -1084,86 +1783,241 @@ const UI = {
     let changed = false;
     for (const ach of ACHIEVEMENTS_DB) {
       if (save.achievements[ach.id]) continue;
-      const current = save[ach.stat] || 0;
+      const current = this.achievementCurrent(ach);
       if (current >= ach.goal) {
         save.achievements[ach.id] = true;
+        const coinReward = ach.reward || 100;
+        const expReward = ach.rewardExp || Math.max(100, ach.goal * 25);
+        const roleId = save.customization.role || 'tank';
+        save.metaCoins = (save.metaCoins || 0) + coinReward;
+        const levelBefore = this.roleProgress(roleId).level;
+        const levelAfter = this.addRoleExp(roleId, expReward);
+        this.syncEconomy();
         changed = true;
         Audio2.achievement();
         Gamepad.rumble(0.8, 300);
-        this._showAchievementToast(ach);
+        this._showAchievementToast(ach, coinReward, expReward, levelAfter > levelBefore);
       }
     }
     if (changed) {
       Save.write();
       this.refreshAchievements();
+      this.refreshRoleProgress();
+      this.refreshCustomization();
+      this.refreshArmory();
+      this.refreshLobby();
     }
   },
 
-  _showAchievementToast(ach) {
+  verificarLogros() {
+    return this.checkAchievements();
+  },
+
+  achievementCurrent(ach) {
+    if (ach.stat === 'bestWeaponLevel') return Math.max(1, ...Object.values(save.customization.weaponLevels || {}).map(Number));
+    if (ach.stat === 'bestRoleLevel') return Math.max(1, ...Object.values(this.ROLE_PROGRESS).map((_, index) => this.roleProgress(Object.keys(this.ROLE_PROGRESS)[index]).level));
+    if (ach.stat === 'unlockedArmorCount') return this.ARMOR_DATA.filter(item => this.isArmoryUnlocked(item.id)).length;
+    return save[ach.stat] || 0;
+  },
+
+  _showAchievementToast(ach, coinReward = 0, expReward = 0, leveledUp = false) {
     const el = document.createElement('div');
     el.className = 'toast achievement';
-    el.innerHTML = `🏆 <strong>LOGRO:</strong> ${ach.icon} ${ach.name}`;
+    el.innerHTML = `🏆 <strong>LOGRO:</strong> ${ach.icon} ${ach.name}<br><small>+${coinReward} ◆ · +${expReward} EXP${leveledUp ? ' · ¡NIVEL SUBIDO!' : ''}</small>`;
     document.getElementById('toasts').appendChild(el);
     setTimeout(() => el.remove(), 3200);
   },
 
+  buyPermanentUpgrade(id) {
+    const upgrades = {
+      atk: { icon: '⚔', name: '+2 ATK', cost: 75 },
+      def: { icon: '🛡', name: '+2 DEF', cost: 75 },
+      maxHp: { icon: '♥', name: '+5 HP', cost: 100 },
+      speed: { icon: '💨', name: '+0.15 VEL', cost: 85 },
+      crit: { icon: '🎯', name: '+2% CRIT', cost: 110 },
+    };
+    const upgrade = upgrades[id];
+    const level = save.upgrades[id] || 0;
+    const cost = upgrade ? upgrade.cost + level * 45 : 0;
+    if (!upgrade || level >= 10 || (save.metaCoins || 0) < cost) {
+      this.toast(level >= 10 ? 'Esta mejora ya está al máximo' : `Necesitas ${cost} monedas meta`, 'gold');
+      return;
+    }
+    save.metaCoins -= cost;
+    save.upgrades[id] = level + 1;
+    save.totalUpgradesBought = (save.totalUpgradesBought || 0) + 1;
+    Save.write();
+    Audio2.buy();
+    Gamepad.rumble(0.3, 60);
+    this.refreshPermShop();
+    this.refreshLobby();
+    this.checkAchievements();
+  },
+
+  permanentShopCatalog() {
+    const rarity = level => level >= 25 ? ['legendary', 'LEGENDARIO'] : level >= 15 ? ['epic', 'ÉPICO'] : level >= 8 ? ['rare', 'RARO'] : ['common', 'COMÚN'];
+    const catalog = [];
+    Object.entries(this.ARMORY_WEAPONS).forEach(([id, item]) => {
+      const [rarityId, rarityLabel] = rarity(item.unlockLevel || 1);
+      catalog.push({ id, name: item.name, type: item.type, group: 'weapons', icon: '⚔', desc: item.desc, level: item.unlockLevel || 1, unlockRole: item.unlockRole, price: this.armoryItemCost(item), rarity: rarityId, rarityLabel, stats: { 'Velocidad': item.attackSpeed, 'Movilidad': item.mobility, 'Especial': item.special } });
+    });
+    this.ARMOR_DATA.forEach(item => {
+      const [rarityId, rarityLabel] = rarity(item.unlockLevel);
+      catalog.push({ id: item.id, name: item.name, type: item.type, group: 'armor', icon: item.category === 'helmets' ? '⛑' : item.category === 'jackets' ? '🥋' : '👖', desc: 'Armadura equipable: modifica tus estadísticas.', level: item.unlockLevel, price: this.armoryItemCost(item), rarity: rarityId, rarityLabel, stats: item.modifiers });
+    });
+    [
+      ['atk', '⚔', '+2 ATK', 'Aumenta el ataque permanente.', 75],
+      ['def', '🛡', '+2 DEF', 'Aumenta la defensa permanente.', 75],
+      ['maxHp', '♥', '+5 HP', 'Aumenta la vida máxima.', 100],
+      ['speed', '💨', '+0.15 VEL', 'Aumenta la velocidad base.', 85],
+      ['crit', '🎯', '+2% CRIT', 'Aumenta la probabilidad crítica.', 110],
+    ].forEach(([id, icon, name, desc, price]) => catalog.push({ id: `upgrade-${id}`, upgradeId: id, name, type: 'MEJORAS', group: 'boosts', icon, desc, level: 1, price, rarity: 'rare', rarityLabel: 'RARO', stats: { 'Nivel máximo': '10' } }));
+    return catalog;
+  },
+
+  shopLevelMet(item) {
+    if (item.group === 'boosts') return true;
+    const roleId = item.unlockRole || save.customization.role || 'tank';
+    return this.roleProgress(roleId).level >= (item.level || 1);
+  },
+
   refreshPermShop() {
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
     set('permShopCoins', save.metaCoins || 0);
     const grid = document.getElementById('permShopGrid');
     if (!grid) return;
-    const ups = [
-      { id:'atk',   icon:'⚔️', name:'+2 ATK',    cost:75 },
-      { id:'def',   icon:'🛡️', name:'+2 DEF',    cost:75 },
-      { id:'maxHp', icon:'❤️', name:'+5 HP',     cost:100 },
-      { id:'speed', icon:'💨', name:'+0.15 VEL', cost:85 },
-      { id:'crit',  icon:'🎯', name:'+2% CRIT',  cost:110 },
-    ];
-    grid.innerHTML = '';
-    for (const u of ups) {
-      const lvl = save.upgrades[u.id] || 0;
-      const cost = u.cost + lvl * 45;
-      const canBuy = save.metaCoins >= cost && lvl < 10;
-      const div = document.createElement('div');
-      div.className = 'stat-row';
-      div.innerHTML = `
-        <span class="label">${u.icon} ${u.name} · Nv.${lvl}/10</span>
-        <span class="value">◆ ${cost}
-          <button class="btn small" style="display:inline-block; margin-left:8px; min-width:auto; padding:4px 10px; font-size:10px;"
-            ${canBuy ? '' : 'disabled'}>${lvl >= 10 ? 'MÁX' : 'COMPRAR'}</button>
-        </span>
-      `;
-      if (canBuy) {
-        div.querySelector('button').addEventListener('click', () => {
-          save.metaCoins -= cost;
-          save.upgrades[u.id] = lvl + 1;
-          save.totalUpgradesBought = (save.totalUpgradesBought || 0) + 1;
-          Save.write();
-          Audio2.buy();
-          Gamepad.rumble(0.3, 60);
-          this.refreshPermShop();
-          this.refreshLobby();
-          this.checkAchievements();
-        });
-      }
-      grid.appendChild(div);
+    const categories = { all: 'TODO', weapons: 'ARMAS', armor: 'ARMADURAS', boosts: 'MEJORAS' };
+    document.querySelectorAll('[data-shop-category]').forEach(button => button.classList.toggle('active', button.dataset.shopCategory === this._shopCategory));
+    document.querySelectorAll('[data-shop-subcategory]').forEach(button => button.classList.toggle('active', button.dataset.shopSubcategory === this._shopSubcategory));
+    const visibleSubcategories = this._shopCategory === 'weapons'
+      ? ['all', 'PISTOLAS', 'RIFLES', 'ESCOPETAS', 'CUERPO A CUERPO']
+      : this._shopCategory === 'armor'
+        ? ['all', 'PANTALONES', 'CHAQUETAS', 'CASCOS']
+        : this._shopCategory === 'boosts'
+          ? []
+          : ['all', 'PISTOLAS', 'RIFLES', 'ESCOPETAS', 'CUERPO A CUERPO', 'PANTALONES', 'CHAQUETAS', 'CASCOS'];
+    document.querySelectorAll('[data-shop-subcategory]').forEach(button => {
+      button.hidden = !visibleSubcategories.includes(button.dataset.shopSubcategory);
+    });
+    if (!visibleSubcategories.includes(this._shopSubcategory)) {
+      this._shopSubcategory = 'all';
     }
+    document.querySelectorAll('[data-shop-subcategory]').forEach(button => {
+      button.classList.toggle('active', button.dataset.shopSubcategory === this._shopSubcategory);
+    });
+    const sort = document.getElementById('permShopSort');
+    if (sort) sort.value = this._shopSort;
+    const missingButton = document.getElementById('permShopMissing');
+    if (missingButton) missingButton.textContent = this._shopMissingOnly ? 'MOSTRAR TODO' : 'MOSTRAR FALTANTES';
+    const catalog = this.permanentShopCatalog().filter(item => {
+      if (this._shopCategory !== 'all' && item.group !== this._shopCategory) return false;
+      if (this._shopSubcategory !== 'all' && item.type !== this._shopSubcategory) return false;
+      const unlocked = item.group === 'boosts' ? false : this.isArmoryUnlocked(item.id);
+      return !this._shopMissingOnly || !unlocked;
+    });
+    const rarityWeight = { common: 1, rare: 2, epic: 3, legendary: 4 };
+    catalog.sort((a, b) => this._shopSort === 'price-asc' ? a.price - b.price : this._shopSort === 'price-desc' ? b.price - a.price : this._shopSort === 'rarity' ? rarityWeight[b.rarity] - rarityWeight[a.rarity] : this._shopSort === 'level' ? a.level - b.level : a.name.localeCompare(b.name));
+    set('permShopResult', `${categories[this._shopCategory]} · ${catalog.length} OBJETOS`);
+    const sections = [
+      ['PISTOLAS', '🔫 PISTOLAS'],
+      ['RIFLES', '⚡ RIFLES'],
+      ['ESCOPETAS', '💥 ESCOPETAS'],
+      ['CUERPO A CUERPO', '⚔ CUERPO A CUERPO'],
+      ['PANTALONES', '👖 PANTALONES'],
+      ['CHAQUETAS', '🥋 CHAQUETAS'],
+      ['CASCOS', '⛑ CASCOS'],
+      ['MEJORAS', '✚ MEJORAS'],
+    ];
+    const renderCard = item => {
+      const unlocked = item.group === 'boosts' ? false : this.isArmoryUnlocked(item.id);
+      const level = item.upgradeId ? save.upgrades[item.upgradeId] || 0 : 0;
+      const affordable = (save.metaCoins || 0) >= item.price;
+      const levelMet = this.shopLevelMet(item);
+      const available = !unlocked && affordable && levelMet;
+      const selected = this._shopSelectedId === item.id;
+      const requirement = item.upgradeId ? `NIVEL ${level}/10` : `NIVEL ${item.level}`;
+      return `<article class="ice-shop-card rarity-${item.rarity} ${unlocked ? 'unlocked' : 'locked'} ${selected ? 'selected' : ''}" data-shop-item-id="${item.id}" tabindex="0">
+        <div class="ice-shop-card-art">${item.icon}</div>
+        <h3>${item.name}</h3><small>${item.type} · ${item.rarityLabel}</small><small>${requirement}${!levelMet ? ' · BLOQUEADO' : ''}</small>
+        <div class="ice-shop-card-footer"><span class="ice-shop-card-price ${affordable ? '' : 'cant'}">${unlocked ? '✓ LISTO' : `◆ ${item.price}`}</span>
+          <button class="ice-shop-buy" type="button" data-shop-${item.upgradeId ? 'upgrade' : 'buy'}="${item.upgradeId || item.id}" ${unlocked || !available ? 'disabled' : ''}>${unlocked ? 'LISTO' : level >= 10 ? 'MÁXIMO' : 'COMPRAR'}</button>
+        </div></article>`;
+    };
+    grid.innerHTML = sections.map(([type, label]) => {
+      const items = catalog.filter(item => item.type === type);
+      if (!items.length) return '';
+      return `<section class="ice-shop-section">
+        <h3 class="ice-shop-section-title">${label}<span>${items.length} OBJETOS</span></h3>
+        <div class="ice-shop-section-grid">${items.map(renderCard).join('')}</div>
+      </section>`;
+    }).join('') || '<p class="modal-hint">No hay objetos con estos filtros.</p>';
+    this.refreshPermShopPreview(catalog.find(item => item.id === this._shopSelectedId) || catalog[0]);
+  },
+
+  refreshPermShopPreview(item) {
+    const icon = document.getElementById('permShopPreviewIcon');
+    const type = document.getElementById('permShopPreviewType');
+    const name = document.getElementById('permShopPreviewName');
+    const desc = document.getElementById('permShopPreviewDesc');
+    const stats = document.getElementById('permShopPreviewStats');
+    const action = document.getElementById('permShopPreviewAction');
+    if (!icon || !type || !name || !desc || !stats || !action) return;
+    if (!item) {
+      icon.textContent = '❄'; type.textContent = 'SELECCIONA UN OBJETO'; name.textContent = 'Catálogo de hielo'; desc.textContent = 'Selecciona una tarjeta para consultar sus estadísticas y requisitos.'; stats.innerHTML = ''; action.disabled = true; action.textContent = 'SELECCIONA UN OBJETO'; return;
+    }
+    const unlocked = item.group === 'boosts' ? false : this.isArmoryUnlocked(item.id);
+    icon.textContent = item.icon; type.textContent = `${item.type} · ${item.rarityLabel}`; name.textContent = item.name; desc.textContent = `${item.desc} Requiere nivel ${item.level}.`;
+    stats.innerHTML = Object.entries(item.stats).map(([label, value]) => `<div class="ice-preview-stat"><span>${label}</span><strong>${typeof value === 'number' && value > 0 ? '+' : ''}${value}</strong></div>`).join('');
+    const levelMet = this.shopLevelMet(item);
+    action.disabled = unlocked || !levelMet || (save.metaCoins || 0) < item.price;
+    action.textContent = unlocked ? '✓ DESBLOQUEADO' : !levelMet ? `NIVEL ${item.level} REQUERIDO` : `◆ ${item.price} · COMPRAR`;
+    action.onclick = () => item.upgradeId ? this.buyPermanentUpgrade(item.upgradeId) : this.unlockArmoryItem(item.id);
   },
 
   refreshInvMeta() {
     const grid = document.getElementById('invMetaGrid');
     if (!grid) return;
-    grid.innerHTML = `
-      <div class="stat-row"><span class="label">Items totales</span><span class="value">${ITEMS_DB.length}</span></div>
-      <div class="stat-row"><span class="label">Consumibles</span><span class="value">${CONSUMABLES_DB.length}</span></div>
-      <div class="stat-row"><span class="label">Rarezas</span><span class="value">4</span></div>
-      <div class="stat-row"><span class="label">Sinergias</span><span class="value">${SYNERGIES.length}</span></div>
-      <div class="stat-row"><span class="label">Mejoras nivel</span><span class="value">${LEVELUP_POOL.length}</span></div>
-      <div class="stat-row"><span class="label">Retos de piso</span><span class="value">${FLOOR_CHALLENGES.length}</span></div>
-      <div class="stat-row"><span class="label">Jefes</span><span class="value">${BOSS_TYPES.length}</span></div>
-      <div class="stat-row"><span class="label">Tipos de enemigo</span><span class="value">${Object.keys(ENEMY_TYPES).length}</span></div>
-      <div class="stat-row"><span class="label">Logros</span><span class="value">${ACHIEVEMENTS_DB.length}</span></div>
-    `;
+    const weaponIds = Object.keys(this.ARMORY_WEAPONS);
+    const unlockedWeapons = weaponIds.filter(id => this.isArmoryUnlocked(id));
+    const unlockedArmor = Object.keys(save.customization.unlockedArmory || {}).filter(id =>
+      this.ARMOR_DATA.some(item => item.id === id));
+    const maxedRoles = Object.values(save.customization.roleProgress || {}).filter(item => (item.level || 1) >= 50).length;
+    const cards = [
+      ['⚔', 'ARMAS DESBLOQUEADAS', `${unlockedWeapons.length}/${weaponIds.length}`, 'missingWeapons'],
+      ['🛡', 'ARMADURAS DESBLOQUEADAS', `${unlockedArmor.length}/${this.ARMOR_DATA.length}`, 'customize'],
+      ['📈', 'ROLES NIVEL 50', `${maxedRoles}/${ICE_RUN_DATA.roles.length}`, 'roleProgress'],
+      ['🏆', 'LOGROS', `${Object.keys(save.achievements || {}).length}/${ACHIEVEMENTS_DB.length}`, 'achievements'],
+      ['◆', 'MONEDAS META', `${save.metaCoins || 0}`, 'shopPerm'],
+      ['✦', 'GEMAS META', `${save.metaGems || 0}`, 'shopPerm'],
+    ];
+    grid.innerHTML = cards.map(([icon, label, value, target]) => `
+      <button class="meta-inventory-card" type="button" data-meta-target="${target}">
+        <span class="meta-card-icon">${icon}</span>
+        <span class="label">${label}</span>
+        <strong class="value">${value}</strong>
+        <small>ABRIR ›</small>
+      </button>
+    `).join('');
+    const total = weaponIds.length + this.ARMOR_DATA.length + ICE_RUN_DATA.roles.length + ACHIEVEMENTS_DB.length;
+    const completed = unlockedWeapons.length + unlockedArmor.length + maxedRoles + Object.keys(save.achievements || {}).length;
+    const percent = total ? Math.round(completed / total * 100) : 0;
+    const percentEl = document.getElementById('metaGlobalPercent');
+    const fillEl = document.getElementById('metaGlobalFill');
+    if (percentEl) percentEl.textContent = `${percent}%`;
+    if (fillEl) fillEl.style.width = `${percent}%`;
+    grid.querySelectorAll('[data-meta-target]').forEach(card => {
+      card.addEventListener('click', () => {
+        const target = card.dataset.metaTarget;
+        if (target === 'customize') this.openCustomization(false);
+        else if (target === 'armory' || target === 'missingWeapons') {
+          this.ARMORY_FILTER = target === 'missingWeapons' ? 'FALTANTES' : 'TODAS';
+          this.show('armory');
+        }
+        else if (target === 'roleProgress') this.show('roleProgress');
+        else if (target === 'achievements') { this.refreshAchievements(); this.show('achievements'); }
+        else if (target === 'shopPerm') { this.refreshPermShop(); this.show('shopPerm'); }
+      });
+    });
   },
 
   buildKeybindList() {

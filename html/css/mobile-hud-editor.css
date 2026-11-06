@@ -31,6 +31,24 @@
   outline-offset: 4px;
   z-index: 80 !important;
 }
+.mobile-hud-editing #abilityBar {
+  display: flex !important;
+}
+.mobile-hud-editing [data-mobile-hud-target] {
+  touch-action: none !important;
+}
+#touchControls.mobile-hud-custom-layout {
+  inset: 0 !important;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+#touchControls.mobile-hud-individual-layout #touchActions {
+  display: contents;
+}
+#abilityBar.mobile-hud-individual-layout {
+  display: contents !important;
+}
 .mobile-hud-editing [data-mobile-hud-target].mobile-hud-selected {
   outline-color: var(--ice-gold);
   box-shadow: 0 0 22px rgba(255,213,79,0.8);

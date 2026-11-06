@@ -117,29 +117,42 @@
     <div id="touchJoystick" class="touch-joystick" aria-label="Mover personaje">
       <div id="touchJoystickKnob" class="touch-joystick-knob"></div>
     </div>
-    <div class="touch-actions">
-      <button class="touch-action touch-action-dash" data-touch-action="dash" aria-label="Dash">💨</button>
-      <button class="touch-action touch-action-basic" data-touch-action="basic" aria-label="Ataque">❄️</button>
-      <button class="touch-action touch-action-melee" data-touch-action="melee" aria-label="Melee">🗡️</button>
-      <button class="touch-action touch-action-long" data-touch-action="long" aria-label="Ráfaga pesada">☄️</button>
-      <button class="touch-action touch-action-block" data-touch-action="block" aria-label="Bloquear">🛡️</button>
-      <button class="touch-action touch-action-interact" data-touch-action="interact" aria-label="Interactuar">E</button>
+    <div id="touchActions" class="touch-actions">
+      <button id="touchDash" class="touch-action touch-action-dash" data-touch-action="dash" aria-label="Dash">💨</button>
+      <button id="touchBasic" class="touch-action touch-action-basic" data-touch-action="basic" aria-label="Ataque">❄️</button>
+      <button id="touchMelee" class="touch-action touch-action-melee" data-touch-action="melee" aria-label="Melee">🗡️</button>
+      <button id="touchLong" class="touch-action touch-action-long" data-touch-action="long" aria-label="Ráfaga pesada">☄️</button>
+      <button id="touchBlock" class="touch-action touch-action-block" data-touch-action="block" aria-label="Bloquear">🛡️</button>
+      <button id="touchInteract" class="touch-action touch-action-interact" data-touch-action="interact" aria-label="Interactuar">E</button>
     </div>
   </div>
 
   <div class="overlay" id="screen-customize">
     <h2 class="screen-title">🎨 PERSONALIZAR PERSONAJE</h2>
-    <p class="modal-hint" id="customizationHint">Selecciona un sprite de <strong>player.customize</strong>.</p>
+    <p class="modal-hint" id="customizationHint">Selecciona un sprite de <strong>player.customize</strong>. Las skins son estéticas; las armaduras equipadas sí modifican las estadísticas.</p>
     <div id="coopCharacterControls" class="coop-character-controls is-hidden">
       <button class="btn" id="btn-select-p1" type="button">P1: elegir</button>
       <button class="btn" id="btn-select-p2" type="button">P2: elegir</button>
       <button class="btn gold" id="btn-start-coop-selected" type="button">▶ Iniciar cooperativo</button>
     </div>
     <div class="customization-preview">
-      <canvas id="customizationPreview" width="128" height="128"></canvas>
-      <div id="customizationSelected" class="customization-selected"></div>
+      <div class="character-selector">
+        <button class="skin-arrow character-arrow" id="characterPrev" type="button" aria-label="Personaje anterior">‹</button>
+        <div>
+          <canvas id="customizationPreview" width="128" height="128"></canvas>
+          <div id="customizationSelected" class="customization-selected"></div>
+        </div>
+        <button class="skin-arrow character-arrow" id="characterNext" type="button" aria-label="Personaje siguiente">›</button>
+      </div>
     </div>
-    <div id="customizationGrid" class="customization-grid"></div>
+    <div class="customization-level-panel">
+      <div><strong>NIVEL <span id="customizationRoleLevel">1</span>/50</strong><span id="customizationRoleExp">0 / 100 EXP</span></div>
+      <i><em id="customizationRoleExpFill"></em></i>
+      <small>Próximo nivel: <span id="customizationNextLevel">100 EXP restantes</span></small>
+    </div>
+    <h3 class="sub-title">EQUIPAMIENTO · CASCOS · CHAQUETAS · PANTALONES</h3>
+    <div id="customizationArmorGrid" class="armor-grid"></div>
+    <div id="customizationGrid" class="customization-grid is-hidden"></div>
     <button class="btn" id="btn-customize-back">← Volver (B)</button>
   </div>
 
@@ -168,7 +181,17 @@
         <div class="armory-nav-label">NAVEGACIÓN</div>
         <button class="armory-tab active" type="button">♜ <span>SALA DE<br>COLECCIÓN</span></button>
         <button class="armory-tab" id="btn-armory-skin" type="button">♙ <span>PERSONALIZAR<br>SKIN</span></button>
-        <div class="armory-current">SELECCIÓN ACTUAL<strong>OPERATIVO // 07</strong></div>
+        <section class="armory-side-stats">
+          <div class="armory-section-heading"><h3>EFECTO DEL COMBO</h3><span id="armoryComboHint"></span></div>
+          <div id="armoryStatBars" class="armory-stat-bars"></div>
+          <div class="armory-side-upgrade">
+            <span>MEJORA DEL ARMA</span>
+            <strong id="armoryUpgradeLevel">NIVEL 1/50</strong>
+            <div class="upgrade-progress"><i></i></div>
+            <p id="armoryWeaponUpgrade">Selecciona un arma.</p>
+            <button class="btn small" id="btn-upgrade-selected" type="button">MEJORAR</button>
+          </div>
+        </section>
       </aside>
 
       <main class="armory-main">
@@ -176,36 +199,35 @@
           <h2>ARMERÍA Y HABILIDADES</h2>
           <p>ARSENAL TÁCTICO // CONFIGURACIÓN DE COMBATE</p>
         </header>
-        <section class="armory-weapons">
-          <div class="armory-section-heading"><h3>ARMERÍA</h3><span>4 / 6 EQUIPADAS</span></div>
-          <div class="armory-weapon-grid">
-            <button class="armory-weapon selected" type="button" data-weapon="Vigilante">
-              <strong>VIGILANTE</strong><small>RIFLE DE FRANCOTIRADOR</small><div class="weapon-art">╞═══════◉</div><em>◉ RIFLE</em>
-            </button>
-            <button class="armory-weapon" type="button" data-weapon="Rompehielo">
-              <strong>ROMPEHIELO</strong><small>ESCOPETA TÁCTICA</small><div class="weapon-art">╞════╤══</div><em>◉ PESADA</em>
-            </button>
-            <button class="armory-weapon" type="button" data-weapon="Centinela">
-              <strong>CENTINELA</strong><small>PISTOLA DE PRECISIÓN</small><div class="weapon-art">╞═══◉</div><em>◉ PISTOLA</em>
-            </button>
-            <button class="armory-weapon" type="button" data-weapon="Avispón">
-              <strong>AVISPÓN</strong><small>SUBFUSIL AUTOMÁTICO</small><div class="weapon-art">╞════╪══</div><em>◉ RÁFAGA</em>
-            </button>
-          </div>
+        <section class="armory-roles">
+          <div class="armory-section-heading"><h3>PERSONAJES / ROLES</h3><span>SELECCIONA UN PERFIL</span></div>
+          <div id="armoryRoleGrid" class="armory-role-grid"></div>
         </section>
-        <section class="armory-upgrades">
-          <div><span>MEJORA DEL ARMA SELECCIONADA</span><strong>NIVEL 4/4</strong><div class="upgrade-progress"><i></i></div></div>
-          <button class="armory-skill passive" type="button">♡<small>PASIVA</small></button>
-          <button class="armory-skill active" type="button">ϟ<small>ACTIVA</small></button>
+        <section class="armory-loadout">
+          <div class="armory-section-heading"><h3>COMBO DE ARMAS</h3><span id="armoryComboLabel">PRINCIPAL + SECUNDARIA</span></div>
+          <div class="loadout-slots">
+            <button class="loadout-slot selected" type="button" data-weapon-slot="primary"><small>ARMA PRINCIPAL</small><strong id="primaryWeaponName">VIGILANTE</strong></button>
+            <button class="loadout-slot" type="button" data-weapon-slot="secondary"><small>ARMA SECUNDARIA</small><strong id="secondaryWeaponName">CENTINELA</strong></button>
+          </div>
+          <div id="armoryFilterBar" class="armory-filter-bar">
+            <button type="button" data-armory-filter="PISTOLAS">PISTOLAS</button>
+            <button type="button" data-armory-filter="RIFLES">RIFLES</button>
+            <button type="button" data-armory-filter="ESCOPETAS">ESCOPETAS</button>
+            <button type="button" data-armory-filter="CUERPO A CUERPO">CUERPO A CUERPO</button>
+            <button type="button" data-armory-filter="FALTANTES">FALTANTES</button>
+          </div>
+          <div id="armoryWeaponGrid" class="armory-weapon-grid"></div>
         </section>
       </main>
 
       <aside class="armory-character">
-        <h3>PERSONAJE</h3><p>ESTÉTICO // SIN CAMBIO DE ESTADÍSTICAS</p>
-        <div class="character-silhouette"><span>♙</span></div>
-        <strong>OPERATIVO // 07</strong>
-        <div class="skin-options"><button type="button">CAMISA</button><button type="button">PANTALÓN</button><button type="button">CASCO</button></div>
-        <div class="skin-arrows"><button type="button">‹</button><button type="button">›</button></div>
+        <h3>PERSONALIZAR SKIN</h3><p>Las skins son estéticas; las armaduras equipadas modifican las estadísticas.</p>
+        <div class="character-silhouette">
+          <canvas id="armorySkinPreview" width="180" height="220" aria-label="Vista previa de la skin personalizada"></canvas>
+        </div>
+        <strong id="armorySkinPart">CAMISA</strong>
+        <div class="skin-options"><button type="button" data-skin-part="shirt">CAMISA</button><button type="button" data-skin-part="pants">PANTALÓN</button><button type="button" data-skin-part="helmet">CASCO</button></div>
+        <div class="skin-arrows"><button type="button" id="skinPrev">‹</button><button type="button" id="skinNext">›</button></div>
       </aside>
     </div>
     <div class="armory-actions">
@@ -214,16 +236,21 @@
     </div>
   </div>
 
+  <div class="overlay role-progress-screen" id="screen-role-progress">
+    <h2 class="screen-title">📈 PROGRESO DE ROL</h2>
+    <p class="modal-hint">Sube cada rol hasta el nivel 50 para desbloquear armas y habilidades.</p>
+    <div id="roleProgressList" class="role-progress-list"></div>
+    <button class="btn danger" id="btn-role-progress-back">← Volver</button>
+  </div>
+
   <div class="overlay active" id="screen-menu">
-    <h1 class="title">ICE RUN</h1>
-    <p class="subtitle">❄ Roguelike Glacial ❄</p>
     <button class="btn menu-btn" id="btn-play">▶ Jugar</button>
     <button class="btn menu-btn gold" id="btn-survival-menu">⚔ Modo Supervivencia</button>
+    <button class="btn menu-btn" id="btn-collection-menu">🏆 Sala de colección</button>
+    <button class="btn menu-btn" id="btn-inv-meta-menu">🎒 Inventario meta</button>
     <button class="btn menu-btn" id="btn-options">⚙ Opciones</button>
     <button class="btn menu-btn" id="btn-stats">📊 Estadísticas</button>
     <button class="btn menu-btn gold" id="btn-achievements">🏆 Logros</button>
-    <button class="btn menu-btn" id="btn-collection-menu">🏆 Sala de colección</button>
-    <button class="btn menu-btn" id="btn-skin-menu">♙ Personalizar skin</button>
   </div>
 
   <div class="overlay" id="screen-lobby">
@@ -252,51 +279,73 @@
 
   <div class="overlay" id="screen-options">
     <h2 class="screen-title">⚙ OPCIONES</h2>
-    <div class="options-panel">
-      <div class="option-row">
-        <label>Volumen: <span id="volVal">70</span>%</label>
-        <input type="range" id="optVolume" min="0" max="100" value="70">
-      </div>
-      <div class="option-row">
-        <label>Música de ambiente</label>
-        <div class="toggle-group">
-          <button class="toggle-btn active" id="optMusicOn" data-toggle="music" data-value="on">ON</button>
-          <button class="toggle-btn" id="optMusicOff" data-toggle="music" data-value="off">OFF</button>
+    <div class="settings-sections">
+      <details class="settings-section" open>
+        <summary>🔊 Sonido</summary>
+        <div class="options-panel">
+          <div class="option-row">
+            <label>Volumen: <span id="volVal">70</span>%</label>
+            <input type="range" id="optVolume" min="0" max="100" value="70">
+          </div>
+          <div class="option-row">
+            <label>Música de ambiente</label>
+            <div class="toggle-group">
+              <button class="toggle-btn active" id="optMusicOn" data-toggle="music" data-value="on">ON</button>
+              <button class="toggle-btn" id="optMusicOff" data-toggle="music" data-value="off">OFF</button>
+            </div>
+          </div>
+          <div class="option-row">
+            <label>Efectos: <span id="sfxVal">80</span>%</label>
+            <input type="range" id="optSfx" min="0" max="100" value="80">
+          </div>
         </div>
-      </div>
-      <div class="option-row">
-        <label>Efectos: <span id="sfxVal">80</span>%</label>
-        <input type="range" id="optSfx" min="0" max="100" value="80">
-      </div>
-      <div class="option-row">
-        <label>Mostrar minimapa</label>
-        <div class="toggle-group">
-          <button class="toggle-btn" id="optMinimapOn" data-toggle="minimap" data-value="on">ON</button>
-          <button class="toggle-btn" id="optMinimapOff" data-toggle="minimap" data-value="off">OFF</button>
+      </details>
+      <details class="settings-section" open>
+        <summary>🎮 Juego</summary>
+        <div class="options-panel">
+          <div class="option-row">
+            <label>Mostrar minimapa</label>
+            <div class="toggle-group">
+              <button class="toggle-btn" id="optMinimapOn" data-toggle="minimap" data-value="on">ON</button>
+              <button class="toggle-btn" id="optMinimapOff" data-toggle="minimap" data-value="off">OFF</button>
+            </div>
+          </div>
+          <div class="option-row">
+            <label>Dificultad</label>
+            <div class="toggle-group">
+              <button class="toggle-btn active" data-diff="normal">Normal</button>
+              <button class="toggle-btn" data-diff="hard">Difícil</button>
+              <button class="toggle-btn" data-diff="insane">Insano</button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="option-row">
-        <label>Dificultad</label>
-        <div class="toggle-group">
-          <button class="toggle-btn active" data-diff="normal">Normal</button>
-          <button class="toggle-btn" data-diff="hard">Difícil</button>
-          <button class="toggle-btn" data-diff="insane">Insano</button>
+      </details>
+      <details class="settings-section">
+        <summary>⌨ Controles de teclado</summary>
+        <div id="keybindList" class="keybind-list"></div>
+        <div class="settings-section-actions">
+          <button class="btn small" id="btn-reset-keys">↻ Restaurar teclas</button>
         </div>
-      </div>
+      </details>
+      <details class="settings-section">
+        <summary>🎮 Mando / Gamepad</summary>
+        <p class="pad-status" id="gamepadStatus">🔌 Mando no detectado. Conéctalo por USB/Bluetooth, pulsa un botón con la pestaña activa y, si no aparece, recarga la página.</p>
+        <div id="gamepadBindList" class="keybind-list"></div>
+        <div class="settings-section-actions">
+          <button class="btn small" id="btn-reset-pad">↻ Restaurar mando</button>
+        </div>
+      </details>
+      <details class="settings-section">
+        <summary>🛠 Interfaz y datos</summary>
+        <div class="settings-section-actions">
+          <button class="btn small" id="btn-hud-options">🎛 Personalizar HUD</button>
+          <button class="btn gold" id="btn-download-apk">📱 Descargar APK</button>
+          <button class="btn danger" id="btn-reset-save">🗑 Borrar progreso</button>
+        </div>
+      </details>
     </div>
-    <h3 class="sub-title">Rebinding de teclas</h3>
-    <div id="keybindList" class="keybind-list"></div>
-    <h3 class="sub-title">Mando / Gamepad</h3>
-    <p class="pad-status" id="gamepadStatus">🔌 Mando no detectado. Conéctalo por USB/Bluetooth, pulsa un botón con la pestaña activa y, si no aparece, recarga la página.</p>
-    <div id="gamepadBindList" class="keybind-list"></div>
     <div class="options-footer">
-      <button class="btn small" id="btn-reset-keys">↻ Restaurar teclas</button>
-      <button class="btn small" id="btn-reset-pad">🎮 Restaurar mando</button>
-      <button class="btn small" id="btn-hud-options">🎛 Personalizar HUD</button>
-      <button class="btn small" id="btn-lobby-layout-options">🧩 Editar lobby</button>
-      <button class="btn gold" id="btn-download-apk">📱 Descargar APK</button>
       <button class="btn" id="btn-options-back">← Volver (B)</button>
-      <button class="btn danger" id="btn-reset-save">🗑 Borrar progreso</button>
     </div>
   </div>
 
@@ -342,7 +391,6 @@
     <div id="hudElementToggles" class="hud-toggle-grid"></div>
     <div class="options-footer">
       <button class="btn small" id="btn-hud-reset">↻ Restaurar HUD</button>
-      <button class="btn small" id="btn-lobby-layout">🧩 Editar lobby</button>
       <button class="btn" id="btn-hud-back">← Volver (B)</button>
     </div>
   </div>
@@ -364,16 +412,66 @@
   </div>
 
   <div class="overlay" id="screen-shop-perm">
-    <h2 class="screen-title">🛒 TIENDA PERMANENTE</h2>
-    <div class="stats-grid" id="permShopGrid"></div>
-    <div class="options-footer">
-      <span class="meta-coins-label">◆ Meta: <strong id="permShopCoins">0</strong></span>
-      <button class="btn" id="btn-perm-back">← Volver (B)</button>
+    <div class="ice-shop-shell">
+      <header class="ice-shop-header">
+        <div>
+          <span class="ice-shop-kicker">MERCADO PERMANENTE · ICE RUN</span>
+          <h2 class="screen-title">❄ TIENDA DE HIELO</h2>
+        </div>
+        <div class="ice-shop-balance">◆ <strong id="permShopCoins">0</strong><small>MONEDAS META</small></div>
+        <button class="btn small ice-shop-back" id="btn-perm-back" type="button">← VOLVER</button>
+      </header>
+      <nav class="ice-shop-tabs" aria-label="Categorías de tienda">
+        <button class="ice-shop-tab active" type="button" data-shop-category="all">✦ TODO</button>
+        <button class="ice-shop-tab" type="button" data-shop-category="weapons">⚔ ARMAS</button>
+        <button class="ice-shop-tab" type="button" data-shop-category="armor">🛡 ARMADURAS</button>
+        <button class="ice-shop-tab" type="button" data-shop-category="boosts">✚ MEJORAS</button>
+      </nav>
+      <div class="ice-shop-toolbar">
+        <div class="ice-shop-subtabs" aria-label="Subcategorías">
+          <button type="button" class="active" data-shop-subcategory="all">TODAS</button>
+          <button type="button" data-shop-subcategory="PISTOLAS">PISTOLAS</button>
+          <button type="button" data-shop-subcategory="RIFLES">RIFLES</button>
+          <button type="button" data-shop-subcategory="ESCOPETAS">ESCOPETAS</button>
+          <button type="button" data-shop-subcategory="CUERPO A CUERPO">CUERPO A CUERPO</button>
+          <button type="button" data-shop-subcategory="PANTALONES">PANTALONES</button>
+          <button type="button" data-shop-subcategory="CHAQUETAS">CHAQUETAS</button>
+          <button type="button" data-shop-subcategory="CASCOS">CASCOS</button>
+        </div>
+        <label class="ice-shop-sort">ORDENAR
+          <select id="permShopSort">
+            <option value="featured">RECOMENDADOS</option>
+            <option value="price-asc">PRECIO: MENOR A MAYOR</option>
+            <option value="price-desc">PRECIO: MAYOR A MENOR</option>
+            <option value="rarity">RAREZA</option>
+            <option value="level">NIVEL REQUERIDO</option>
+          </select>
+        </label>
+      </div>
+      <main class="ice-shop-content">
+        <section class="ice-shop-catalog">
+          <div class="ice-shop-result-line"><span id="permShopResult">CATÁLOGO</span><button type="button" id="permShopMissing">MOSTRAR FALTANTES</button></div>
+          <div class="ice-shop-grid" id="permShopGrid"></div>
+        </section>
+        <aside class="ice-shop-preview" id="permShopPreview">
+          <div class="ice-preview-art" id="permShopPreviewIcon">❄</div>
+          <span class="ice-shop-kicker" id="permShopPreviewType">SELECCIONA UN OBJETO</span>
+          <h3 id="permShopPreviewName">Catálogo de hielo</h3>
+          <p id="permShopPreviewDesc">Selecciona una tarjeta para consultar sus estadísticas y requisitos.</p>
+          <div class="ice-preview-stats" id="permShopPreviewStats"></div>
+          <button class="btn ice-preview-action" id="permShopPreviewAction" type="button" disabled>SELECCIONA UN OBJETO</button>
+        </aside>
+      </main>
     </div>
   </div>
 
   <div class="overlay" id="screen-inv-meta">
     <h2 class="screen-title">🎒 INVENTARIO META</h2>
+    <div class="meta-global-progress">
+      <div><span>PROGRESO GLOBAL DEL JUEGO</span><strong id="metaGlobalPercent">0%</strong></div>
+      <i><em id="metaGlobalFill"></em></i>
+    </div>
+    <p class="modal-hint">Consulta tus desbloqueos permanentes y progreso general. Cada recuadro es seleccionable.</p>
     <div class="stats-grid" id="invMetaGrid"></div>
     <button class="btn" id="btn-inv-back">← Volver (B)</button>
   </div>
@@ -430,6 +528,7 @@
 </div>
 
 <script src="js/config.js"></script>
+<script src="js/game-data.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/customization.js"></script>
 <script src="js/audio-input.js"></script>

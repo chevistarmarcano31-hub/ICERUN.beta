@@ -382,15 +382,7 @@ class Player {
       const canvas = document.getElementById('game');
       const rect = canvas.getBoundingClientRect();
       const hasMouse = Input._mx !== undefined && Input._my !== undefined;
-      if (this.controlId === 'p1' && hasTouchMove) {
-        this.aimAngle = Math.atan2(ty, tx);
-        this._lastAimAngle = this.aimAngle;
-      } else if (this.controlId === 'p1' && (dx !== 0 || dy !== 0)) {
-        // Keyboard movement also acts as the aim stick for keyboard-only play.
-        const keyboardLen = Math.hypot(dx, dy) || 1;
-        this.aimAngle = Math.atan2(dy / keyboardLen, dx / keyboardLen);
-        this._lastAimAngle = this.aimAngle;
-      } else if (this.controlId === 'p1' && hasMouse) {
+      if (this.controlId === 'p1' && hasMouse) {
         const mouseX = Input._mx * (CFG.W / rect.width);
         const mouseY = Input._my * (CFG.H / rect.height);
         const dxm = mouseX - this.x, dym = mouseY - this.y;
@@ -1498,6 +1490,12 @@ class Room {
     this.enemies = [];
     this.obstacles = [];
     this.neighbors = { up:null, down:null, left:null, right:null };
+    this.puertas = {
+      puertaArriba: { x: CFG.W / 2, y: CFG.WALL },
+      puertaAbajo: { x: CFG.W / 2, y: CFG.H - CFG.WALL },
+      puertaIzquierda: { x: CFG.WALL, y: CFG.H / 2 },
+      puertaDerecha: { x: CFG.W - CFG.WALL, y: CFG.H / 2 },
+    };
     this.boss = null;
     this.looted = false;
     this.shopped = false;
@@ -1528,6 +1526,11 @@ class Room {
     // Reto del piso: multiplicador de cantidad
     const c = Game.floorChallenge ? Game.floorChallenge.apply : null;
     const chamber = this.challenge;
+    const wave = chamber?.wave || 1;
+    const waveCountMul = chamber ? [1, 1.25, 1.5][wave - 1] || 1.5 : 1;
+    const waveDiffMul = chamber ? [1, 1.25, 1.55][wave - 1] || 1.55 : 1;
+    const spawnFloor = chamber ? floorNum + wave - 1 : floorNum;
+    count = Math.round(count * waveCountMul);
     if (c && c.enemyCountMul) {
       count = Math.round(count * c.enemyCountMul);
     }
@@ -1538,25 +1541,25 @@ class Room {
     const types = ['melee_basic', 'melee_basic', 'ranged_basic', 'ranged_basic'];
     for (const key of newMelee) {
       types.push(key, key);
-      if (floorNum >= 3) types.push(`${key}_elite`);
-      if (floorNum >= 6) types.push(`${key}_elite`);
+      if (spawnFloor >= 3) types.push(`${key}_elite`);
+      if (spawnFloor >= 6) types.push(`${key}_elite`);
     }
     for (const key of newRanged) {
       types.push(key, key);
-      if (floorNum >= 3) types.push(`${key}_elite`);
-      if (floorNum >= 6) types.push(`${key}_elite`);
+      if (spawnFloor >= 3) types.push(`${key}_elite`);
+      if (spawnFloor >= 6) types.push(`${key}_elite`);
     }
-    if (floorNum >= 3) types.push('melee_elite');
-    if (floorNum >= 5) types.push('ranged_elite');
+    if (spawnFloor >= 3) types.push('melee_elite');
+    if (spawnFloor >= 5) types.push('ranged_elite');
     if (chamber && chamber.meleeEliteBias) {
       types.length = 0;
       for (const key of newMelee) {
-        types.push(floorNum >= 3 ? `${key}_elite` : key, key);
+        types.push(spawnFloor >= 3 ? `${key}_elite` : key, key);
       }
     } else if (chamber && chamber.rangedEliteBias) {
       types.length = 0;
       for (const key of newRanged) {
-        types.push(floorNum >= 3 ? `${key}_elite` : key, key);
+        types.push(spawnFloor >= 3 ? `${key}_elite` : key, key);
       }
     }
 
@@ -1564,7 +1567,7 @@ class Room {
       const ex = Util.rand(CFG.WALL + 60, CFG.W - CFG.WALL - 60);
       const ey = Util.rand(CFG.WALL + 60, CFG.H - CFG.WALL - 60);
       const typeKey = Util.pick(types);
-      this.enemies.push(new Enemy(ex, ey, typeKey, floorNum, diffMul));
+      this.enemies.push(new Enemy(ex, ey, typeKey, floorNum, diffMul * waveDiffMul));
     }
   }
 

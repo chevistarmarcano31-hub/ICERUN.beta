@@ -171,10 +171,10 @@ const ENEMY_TYPES = {
 };
 
 const CHALLENGE_ROOMS = [
-  { id:'swarm', icon:'🐝', name:'Cámara del Enjambre', desc:'Más enemigos, pero cada baja otorga monedas extra.', enemyCountMul:1.6, rewardCoins:20 },
-  { id:'crossfire', icon:'🎯', name:'Cámara del Fuego Cruzado', desc:'Los arqueros aparecen reforzados.', rangedEliteBias:true, rewardCoins:24 },
-  { id:'gauntlet', icon:'⚔️', name:'Cámara del Duelista', desc:'Solo criaturas cuerpo a cuerpo élite.', meleeEliteBias:true, rewardCoins:28 },
-  { id:'survival', icon:'⏳', name:'Cámara de Supervivencia', desc:'Enemigos más rápidos durante la sala.', enemySpeedMul:1.3, rewardCoins:30 },
+  { id:'swarm', icon:'🐝', name:'Cámara del Enjambre', desc:'Tres hordas cada vez más numerosas.', enemyCountMul:1.6, rewardCoins:20 },
+  { id:'crossfire', icon:'🎯', name:'Cámara del Fuego Cruzado', desc:'Tres oleadas de arqueros reforzados.', rangedEliteBias:true, rewardCoins:24 },
+  { id:'gauntlet', icon:'⚔️', name:'Cámara del Duelista', desc:'Tres oleadas de criaturas cuerpo a cuerpo élite.', meleeEliteBias:true, rewardCoins:28 },
+  { id:'survival', icon:'⏳', name:'Cámara de Supervivencia', desc:'Tres hordas con enemigos cada vez más rápidos.', enemySpeedMul:1.3, rewardCoins:30 },
 ];
 const BOSS_TYPES = [
   { name:'Escarcha Menor',   icon:'❄',  hp:300,  speed:1.0, atkRate:1100, minionCount:3, patterns:['fan','charge','circle'] },
@@ -220,6 +220,10 @@ const ACHIEVEMENTS_DB = [
   { id:'obstacles_200',icon:'🧨', name:'Triturador',       desc:'Destruye 200 obstáculos.',            goal:200,  stat:'totalObstaclesDestroyed' },
   { id:'consume_10',   icon:'🧪', name:'Boticario',        desc:'Usa 10 consumibles.',                 goal:10,   stat:'totalConsumablesUsed' },
   { id:'consume_50',   icon:'⚗️', name:'Alquimista',       desc:'Usa 50 consumibles.',                 goal:50,   stat:'totalConsumablesUsed' },
+  { id:'weapon_level_10', icon:'🔫', name:'Arma mejorada', desc:'Mejora un arma al nivel 10.', goal:10, stat:'bestWeaponLevel', reward:250 },
+  { id:'role_level_50', icon:'🌟', name:'Maestría de rol', desc:'Alcanza el nivel 50 con un rol.', goal:50, stat:'bestRoleLevel', reward:1000 },
+  { id:'armor_10', icon:'🛡️', name:'Armero', desc:'Desbloquea 10 armaduras.', goal:10, stat:'unlockedArmorCount', reward:400 },
+  { id:'first_upgrade', icon:'⬆️', name:'Primera mejora', desc:'Compra tu primera mejora.', goal:1, stat:'totalUpgradesBought', reward:100 },
 ];
 
 /* ================================================================

@@ -24,15 +24,16 @@ body {
   display:flex;
   align-items:center;
   justify-content:center;
-  padding: 8px;
+  padding: 0;
 }
 #app {
   position: relative;
-  width: min(96vw, calc((100vh - 24px) * 1.5), 960px);
-  width: min(96vw, calc((100dvh - 24px) * 1.5), 960px);
-  max-width: 960px;
+  width: min(100vw, calc(100dvh * 1.5));
+  height: min(100dvh, calc(100vw / 1.5));
+  max-width: none;
+  max-height: none;
   aspect-ratio: 3 / 2;
-  margin: 0 auto;
+  margin: 0;
   border: 2px solid var(--ice-cyan);
   border-radius: 12px;
   box-shadow: 0 0 40px rgba(0,229,255,0.4), inset 0 0 40px rgba(0,229,255,0.08);
@@ -92,6 +93,15 @@ canvas#game {
     grid-template-columns: repeat(3, 54px);
     gap: 8px;
     align-items: end;
+  }
+  #touchControls.mobile-hud-custom-layout {
+    inset: 0 !important;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+  }
+  .mobile-hud-editing #touchControls.mobile-hud-custom-layout {
+    background: rgba(0, 229, 255, 0.035);
   }
   .touch-action {
     width: 54px;
