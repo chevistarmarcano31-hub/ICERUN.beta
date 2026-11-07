@@ -43,7 +43,24 @@ const ICE_RUN_DATA = (() => {
   const rifles = crearArmas('Rifles', ['Rifle de plasma','Rifle boreal','Rifle de asalto','Rifle de hielo','Rifle de pulsos','Rifle francotirador','Rifle de radar','Rifle tormenta','Rifle perforante','Rifle aurora'], 'tactico', { daño:24, velocidadAtaque:3, movilidad:-3 });
   const escopetas = crearArmas('Escopetas', ['Escopeta pesada','Escopeta doble','Escopeta glaciar','Escopeta de asalto','Escopeta rompehielo','Escopeta polar','Escopeta sísmica','Escopeta de carga','Escopeta nevada','Escopeta devastadora'], 'tanque', { daño:34, velocidadAtaque:-5, movilidad:-6 });
   const cuerpoACuerpo = crearArmas('Cuerpo a cuerpo', ['Daga espectral','Cuchillo criónico','Hacha de hielo','Martillo polar','Cuchillas gemelas','Guantes de combate','Lanza glacial','Garras boreales','Espada de escarcha','Bastón de ventisca'], 'asesino', { daño:20, velocidadAtaque:10, movilidad:8 });
-  const armas = [...pistolas, ...rifles, ...escopetas, ...cuerpoACuerpo];
+  const francotiradores = {
+    id: 'snipers',
+    name: 'FRANCOTIRADORES',
+    statsBase: {
+      damage: 90,
+      fireRate: 0.7,
+      range: 1400,
+      ammoCapacity: 4,
+      projectileBehavior: 'hitscan',
+      penetration: true,
+    },
+    armas: [
+      { id: 'precision-rifle', name: 'Rifle de Precisión', statsBase: { damage: 88, fireRate: 0.8, range: 1200, ammoCapacity: 5, projectileBehavior: 'hitscan', penetration: true } },
+      { id: 'rail-cannon', name: 'Cañón de Riel', statsBase: { damage: 100, fireRate: 0.5, range: 1600, ammoCapacity: 3, projectileBehavior: 'hitscan', penetration: true } },
+      { id: 'ice-sniper', name: 'Francotirador de Hielo', statsBase: { damage: 94, fireRate: 0.65, range: 1450, ammoCapacity: 4, projectileBehavior: 'hitscan', penetration: true } },
+    ],
+  };
+  const armas = [...pistolas, ...rifles, ...francotiradores.armas, ...escopetas, ...cuerpoACuerpo];
 
   const crearArmaduras = (tipo, nombres, rarezas, modificadores) => nombres.map((nombre, index) => ({
     id: `${tipo.toLowerCase()}-${index + 1}`,
@@ -84,6 +101,7 @@ const ICE_RUN_DATA = (() => {
     armas,
     pistolas,
     rifles,
+    francotiradores,
     escopetas,
     cuerpoACuerpo,
     armaduras,

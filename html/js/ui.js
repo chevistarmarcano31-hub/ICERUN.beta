@@ -1,4 +1,4 @@
-var dineroJugador = 5000;
+var dineroJugador = 0;
 
 function mejorarItem(itemId, tipo) {
   return UI.mejorarItem(itemId, tipo);
@@ -117,6 +117,36 @@ const UI = {
   })(),
   ensureMassiveArmory() {
     this.ARMORY_WEAPONS.hielo.type = 'PISTOLAS';
+    const sniperCategory = typeof ICE_RUN_DATA !== 'undefined' ? ICE_RUN_DATA.francotiradores : null;
+    sniperCategory?.armas.forEach(weapon => {
+      const stats = { ...sniperCategory.statsBase, ...weapon.statsBase };
+      this.ARMORY_WEAPONS[weapon.id] = {
+        name: weapon.name,
+        type: sniperCategory.name,
+        categoryId: sniperCategory.id,
+        desc: `${sniperCategory.name} · impacto instantáneo y penetración lineal`,
+        art: '╞═══════◉',
+        attackSpeed: -35,
+        mobility: -24,
+        special: 42,
+        statsBase: {
+          damage: stats.damage,
+          cadence: Math.max(1, Math.round(stats.fireRate * 10)),
+          mobility: -24,
+          bullets: stats.ammoCapacity,
+          range: stats.range,
+          fireRate: stats.fireRate,
+          ammoCapacity: stats.ammoCapacity,
+          projectileBehavior: stats.projectileBehavior,
+          penetration: stats.penetration,
+        },
+        costoMejora: 180,
+        nivelActual: 1,
+        upgrade: 'Disparo perforante de largo alcance.',
+        unlockLevel: 1,
+        unlockRole: 'ghostSniper',
+      };
+    });
     const catalog = {
       PISTOLAS: ['Pistola ártica', 'Pistola de plasma', 'Pistola médica', 'Pistola de ácido', 'Pistola centella', 'Pistola de ráfaga', 'Pistola glacial', 'Pistola silente', 'Pistola magnética', 'Pistola de precisión'],
       RIFLES: ['Rifle de plasma', 'Rifle boreal', 'Rifle de asalto', 'Rifle de hielo', 'Rifle de pulsos', 'Rifle francotirador', 'Rifle de radar', 'Rifle tormenta', 'Rifle perforante', 'Rifle aurora'],
@@ -1483,7 +1513,10 @@ const UI = {
       const groups = {};
       for (const [id, item] of Object.entries(this.ARMORY_WEAPONS)) {
         if (this.ARMORY_FILTER === 'FALTANTES' && this.isArmoryUnlocked(id)) continue;
-        if (this.ARMORY_FILTER !== 'FALTANTES' && item.type !== this.ARMORY_FILTER) continue;
+        if (this.ARMORY_FILTER !== 'FALTANTES') {
+          const matchesSniperCategory = this.ARMORY_FILTER === 'snipers' && item.categoryId === this.ARMORY_FILTER;
+          if (!matchesSniperCategory && item.type !== this.ARMORY_FILTER) continue;
+        }
         (groups[item.type] ||= []).push([id, item]);
       }
       weaponGrid.innerHTML = Object.entries(groups).map(([type, weapons]) => `
@@ -1890,12 +1923,12 @@ const UI = {
     document.querySelectorAll('[data-shop-category]').forEach(button => button.classList.toggle('active', button.dataset.shopCategory === this._shopCategory));
     document.querySelectorAll('[data-shop-subcategory]').forEach(button => button.classList.toggle('active', button.dataset.shopSubcategory === this._shopSubcategory));
     const visibleSubcategories = this._shopCategory === 'weapons'
-      ? ['all', 'PISTOLAS', 'RIFLES', 'ESCOPETAS', 'CUERPO A CUERPO']
+      ? ['all', 'PISTOLAS', 'RIFLES', 'FRANCOTIRADORES', 'ESCOPETAS', 'CUERPO A CUERPO']
       : this._shopCategory === 'armor'
         ? ['all', 'PANTALONES', 'CHAQUETAS', 'CASCOS']
         : this._shopCategory === 'boosts'
           ? []
-          : ['all', 'PISTOLAS', 'RIFLES', 'ESCOPETAS', 'CUERPO A CUERPO', 'PANTALONES', 'CHAQUETAS', 'CASCOS'];
+          : ['all', 'PISTOLAS', 'RIFLES', 'FRANCOTIRADORES', 'ESCOPETAS', 'CUERPO A CUERPO', 'PANTALONES', 'CHAQUETAS', 'CASCOS'];
     document.querySelectorAll('[data-shop-subcategory]').forEach(button => {
       button.hidden = !visibleSubcategories.includes(button.dataset.shopSubcategory);
     });
@@ -1921,6 +1954,7 @@ const UI = {
     const sections = [
       ['PISTOLAS', '🔫 PISTOLAS'],
       ['RIFLES', '⚡ RIFLES'],
+      ['FRANCOTIRADORES', '◉ FRANCOTIRADORES'],
       ['ESCOPETAS', '💥 ESCOPETAS'],
       ['CUERPO A CUERPO', '⚔ CUERPO A CUERPO'],
       ['PANTALONES', '👖 PANTALONES'],

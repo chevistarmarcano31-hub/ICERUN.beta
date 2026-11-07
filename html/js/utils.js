@@ -81,7 +81,7 @@ const Save = {
   KEY: 'iceRun_v14',
   defaults() {
     return {
-      bestFloor:0, totalRuns:0, totalKills:0, metaCoins:5000, metaGems:0,
+      bestFloor:0, totalRuns:0, totalKills:0, metaCoins:0, metaGems:0,
       totalWins:0,
       totalUpgradesBought:0,
       bestLevelReached:1,
@@ -151,7 +151,7 @@ const Save = {
       const def = this.defaults();
       const savedOptions = d.options || {};
       const savedHud = savedOptions.hud || {};
-      return {
+      const loaded = {
         ...def, ...d,
         upgrades: { ...def.upgrades, ...(d.upgrades||{}) },
         options:  {
@@ -186,6 +186,10 @@ const Save = {
         gamepad:  { ...def.gamepad,  ...(d.gamepad||{}) },
         achievements: { ...(d.achievements||{}) },
       };
+      if (d.metaCoins === 5000 && !d.totalRuns && !d.totalKills && !d.totalWins) {
+        loaded.metaCoins = 0;
+      }
+      return loaded;
     } catch { return this.defaults(); }
   },
   write() { try { localStorage.setItem(this.KEY, JSON.stringify(save)); } catch {} },

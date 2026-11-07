@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ice-run-v16';
+const CACHE_NAME = 'ice-run-v17';
 const APP_SHELL = [
   './',
   './index.html',

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'los-magos-del-tiempo-v1';
+const CACHE_NAME = 'ice-run-v10';
 const APP_SHELL = [
   './',
   './index.html',
