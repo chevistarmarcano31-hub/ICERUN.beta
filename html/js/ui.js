@@ -42,6 +42,7 @@ const UI = {
   _shopSort: 'featured',
   _shopMissingOnly: false,
   _shopSelectedId: null,
+  _selectedWeaponId: null,
   ARMORY_ROLES: {
     tank:{ name:'EL TANQUE', icon:'🛡', desc:'Regeneración de escudo.', passive:'Regeneración de escudo', active:'Dash explosivo', combo:'Escopeta + Escudo', stats:{ attackSpeed:5, mobility:2, special:7 } },
     assassin:{ name:'EL ASESINO', icon:'⚡', desc:'Invisibilidad al quedarse quieto.', passive:'Invisibilidad al quedarse quieto', active:'Golpe crítico garantizado', combo:'Francotirador + Daga', stats:{ attackSpeed:3, mobility:6, special:9 } },
@@ -296,9 +297,19 @@ const UI = {
     bind('btn-armory-back', () => this.show(this._lastScreen === 'menu' ? 'menu' : 'lobby'));
     bind('btn-role-progress-back', () => this.show(this._lastScreen === 'menu' ? 'menu' : 'lobby'));
     bind('btn-armory-skin', () => { this._customizationReturn = 'armory'; this.openCustomization(false); });
-    bind('btn-armory-equip', () => {
-      this.toast('Combo de armas equipado', 'gold');
-    });
+  bind('btn-armory-equip', () => {
+  const slot = document.querySelector('[data-weapon-slot].selected')?.dataset.weaponSlot || 'primary';
+  if (!this._selectedWeaponId) {
+    this.toast('Selecciona un arma primero', 'gold');
+    return;
+  }
+  if (typeof WeaponSystem !== 'undefined') {
+    WeaponSystem.equip(slot, this._selectedWeaponId);
+  }
+  this.refreshArmory();
+  this.updateWeaponHud();
+  this.toast('Combo de armas equipado', 'gold');
+});
     document.getElementById('armoryRoleGrid')?.addEventListener('click', e => {
       const role = e.target.closest('[data-role]')?.dataset.role;
       if (role) {
@@ -1572,17 +1583,25 @@ const UI = {
   },
 
   selectArmoryWeapon(weapon) {
-    if (!this.ARMORY_WEAPONS[weapon]) return;
-    const item = this.ARMORY_WEAPONS[weapon];
-    if (!this.isArmoryUnlocked(weapon)) {
-      this.toast('Desbloquea este objeto en la Tienda Permanente', 'gold');
-      return;
-    }
-    const slot = document.querySelector('[data-weapon-slot].selected')?.dataset.weaponSlot || 'primary';
-    save.customization[slot] = weapon;
-    Save.write();
-    this.refreshArmory();
-  },
+  if (!WEAPONS_DB[weapon]) return;
+  const item = WEAPONS_DB[weapon];
+
+  // 🔑 Guardar el seleccionado para que el botón EQUIPAR lo use
+  this._selectedWeaponId = weapon;
+
+  // Guardar también en customization (compatibilidad con la armería antigua)
+  const slot = document.querySelector('[data-weapon-slot].selected')?.dataset.weaponSlot || 'primary';
+  save.customization[slot] = weapon;
+
+  // 🔥 Equipar YA en WeaponSystem (efecto inmediato en gameplay)
+  if (typeof WeaponSystem !== 'undefined') {
+    WeaponSystem.equip(slot, weapon);
+  }
+
+  Save.write();
+  this.refreshArmory();
+  this.updateWeaponHud();
+},
 
   selectSkinPart(part, write = true) {
     const labels = { shirt:'CAMISA', pants:'PANTALÓN', helmet:'CASCO' };

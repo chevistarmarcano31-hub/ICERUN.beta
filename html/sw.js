@@ -1,3 +1,6 @@
+/**
+ * Service Worker for Ice Run
+ */
 const CACHE_NAME = 'ice-run-v17';
 const APP_SHELL = [
   './',
